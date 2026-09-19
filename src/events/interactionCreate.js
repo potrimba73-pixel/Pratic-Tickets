@@ -12,6 +12,13 @@ import { enviarSetup, handleSetupInteraction } from '../services/setupWizard.js'
 
 export async function handleInteraction(interaction, client) {
   try {
+    // ============================================================
+    // SETUP WIZARD (antes de tudo)
+    // ============================================================
+    if (interaction.customId?.startsWith('setup_')) {
+      return handleSetupInteraction(interaction);
+    }
+
     if (interaction.isChatInputCommand()) return handleCommand(interaction, client);
     if (interaction.isStringSelectMenu() && interaction.customId.startsWith('panel_')) {
       return createTicket(interaction, interaction.customId.replace('panel_', ''), interaction.values[0]);
