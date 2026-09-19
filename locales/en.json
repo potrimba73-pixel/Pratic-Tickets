@@ -1,0 +1,64 @@
+{
+  "common": {
+    "error": "❌ An error occurred.",
+    "noPermission": "❌ You don't have permission.",
+    "staffOnly": "❌ Staff only.",
+    "ownerOnly": "❌ Bot owner only."
+  },
+  "setup": {
+    "title": "⚙️ Pratic Bot Setup",
+    "desc": "Follow the steps to configure the ticket system.",
+    "steps": "**Steps:**\n1. `/config logs #channel`\n2. `/config transcripts #channel`\n3. `/config staff @role`\n4. `/config categoria #category`\n5. `/painel criar`\n6. `/painel enviar`"
+  },
+  "config": {
+    "title": "⚙️ Configuration",
+    "saved": "✅ Saved.",
+    "logs": "Logs",
+    "transcripts": "Transcripts",
+    "staff": "Staff",
+    "category": "Category",
+    "plan": "Plan",
+    "language": "Language",
+    "languageSet": "✅ Language changed to English."
+  },
+  "panel": {
+    "created": "✅ Panel created. ID: `{id}`",
+    "optionAdded": "✅ Option added ({n}/{max}).",
+    "listEmpty": "No panels created.",
+    "sent": "✅ Panel sent to {channel}.",
+    "deleted": "✅ Panel deleted.",
+    "noOptions": "❌ Panel has no options.",
+    "placeholder": "Choose an option"
+  },
+  "ticket": {
+    "created": "✅ Ticket created: {channel}",
+    "alreadyOpen": "❌ You already have an open ticket: {channel}",
+    "claim": "🙋 Claim",
+    "close": "🔒 Close",
+    "notify": "🔔 Notify",
+    "add": "➕ Add",
+    "priority": "⚡ Priority",
+    "lock": "🔐 Lock",
+    "rename": "✏️ Rename",
+    "pin": "📌 Pin",
+    "export": "📄 Export",
+    "transfer": "🔄 Transfer",
+    "claimed": "✅ Claimed by {staff}",
+    "waiting": "⏳ Waiting for staff",
+    "closed": "🔒 Ticket closed by {staff}."
+  },
+  "premium": {
+    "invalid": "❌ Invalid key.",
+    "used": "❌ Key already used.",
+    "activated": "⭐ Plan {plan} activated until {date}."
+  },
+  "rating": {
+    "title": "⭐ How was the support?",
+    "thanks": "⭐ Thanks! You rated {n}/5."
+  },
+  "transcript": {
+    "title": "📄 Transcript",
+    "cutTitle": "⚠️ Transcript Cut",
+    "cutDesc": "This ticket had **{total}** messages, but the **{plan}** plan only exports **{max}**.\n**{faltam}** messages were left out.\n\n💡 Upgrade to **{next}** ({price}) and export up to **{nextMax}** per ticket."
+  }
+}
