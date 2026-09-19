@@ -1,0 +1,64 @@
+{
+  "common": {
+    "error": "❌ Ocurrió un error.",
+    "noPermission": "❌ No tienes permiso.",
+    "staffOnly": "❌ Solo staff.",
+    "ownerOnly": "❌ Solo el dueño del bot."
+  },
+  "setup": {
+    "title": "⚙️ Configuración de Pratic Bot",
+    "desc": "Sigue los pasos para configurar el sistema de tickets.",
+    "steps": "**Pasos:**\n1. `/config logs #canal`\n2. `/config transcripts #canal`\n3. `/config staff @rol`\n4. `/config categoria #categoria`\n5. `/painel criar`\n6. `/painel enviar`"
+  },
+  "config": {
+    "title": "⚙️ Configuración",
+    "saved": "✅ Guardado.",
+    "logs": "Logs",
+    "transcripts": "Transcripciones",
+    "staff": "Staff",
+    "category": "Categoría",
+    "plan": "Plan",
+    "language": "Idioma",
+    "languageSet": "✅ Idioma cambiado a Español."
+  },
+  "panel": {
+    "created": "✅ Panel creado. ID: `{id}`",
+    "optionAdded": "✅ Opción añadida ({n}/{max}).",
+    "listEmpty": "Ningún panel creado.",
+    "sent": "✅ Panel enviado en {channel}.",
+    "deleted": "✅ Panel eliminado.",
+    "noOptions": "❌ Panel sin opciones.",
+    "placeholder": "Elige una opción"
+  },
+  "ticket": {
+    "created": "✅ Ticket creado: {channel}",
+    "alreadyOpen": "❌ Ya tienes un ticket abierto: {channel}",
+    "claim": "🙋 Asumir",
+    "close": "🔒 Cerrar",
+    "notify": "🔔 Notificar",
+    "add": "➕ Añadir",
+    "priority": "⚡ Prioridad",
+    "lock": "🔐 Bloquear",
+    "rename": "✏️ Renombrar",
+    "pin": "📌 Fijar",
+    "export": "📄 Exportar",
+    "transfer": "🔄 Transferir",
+    "claimed": "✅ Asumido por {staff}",
+    "waiting": "⏳ Esperando staff",
+    "closed": "🔒 Ticket cerrado por {staff}."
+  },
+  "premium": {
+    "invalid": "❌ Clave inválida.",
+    "used": "❌ Clave ya usada.",
+    "activated": "⭐ Plan {plan} activado hasta {date}."
+  },
+  "rating": {
+    "title": "⭐ ¿Cómo fue la atención?",
+    "thanks": "⭐ ¡Gracias! Valoraste con {n}/5."
+  },
+  "transcript": {
+    "title": "📄 Transcripción",
+    "cutTitle": "⚠️ Transcripción Cortada",
+    "cutDesc": "Este ticket tenía **{total}** mensajes, pero el plan **{plan}** solo exporta **{max}**.\nQuedaron fuera **{faltam}** mensajes.\n\n💡 Haz upgrade a **{next}** ({price}) y exporta hasta **{nextMax}** por ticket."
+  }
+}
