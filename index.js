@@ -1,132 +1,275 @@
-import 'dotenv/config';
-import http from 'node:http';
-import { Client, GatewayIntentBits, Partials, REST, Routes, SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
-import { connectDB } from './src/database/mongo.js';
-import { handleInteraction } from './src/events/interactionCreate.js';
-import { handleReady } from './src/events/ready.js';
-import { handleGuildCreate } from './src/events/guildCreate.js';
+import { EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 
 // ============================================================
-// COMANDOS (registados automaticamente)
+// CARGOS (IDs reais do teu servidor)
 // ============================================================
-const cmds = [
-  new SlashCommandBuilder().setName('setup').setDescription('Setup Pratic Bot').toJSON(),
-
-  new SlashCommandBuilder().setName('config').setDescription('Configurar')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .addSubcommand(s => s.setName('ver').setDescription('Ver'))
-    .addSubcommand(s => s.setName('logs').setDescription('Logs').addChannelOption(o => o.setName('canal').setDescription('Canal').setRequired(true)))
-    .addSubcommand(s => s.setName('transcripts').setDescription('Transcripts').addChannelOption(o => o.setName('canal').setDescription('Canal').setRequired(true)))
-    .addSubcommand(s => s.setName('staff').setDescription('Staff').addRoleOption(o => o.setName('cargo').setDescription('Cargo').setRequired(true)))
-    .addSubcommand(s => s.setName('categoria').setDescription('Categoria').addChannelOption(o => o.setName('categoria').setDescription('Cat').setRequired(true)))
-    .addSubcommand(s => s.setName('idioma').setDescription('Idioma').addStringOption(o => o.setName('locale').setDescription('Locale').setRequired(true)
-      .addChoices({ name: 'Português (PT)', value: 'pt-PT' }, { name: 'Português (BR)', value: 'pt-BR' }, { name: 'Español', value: 'es-ES' }, { name: 'Русский', value: 'ru' }, { name: 'English', value: 'en' })))
-    .toJSON(),
-
-  
-  new SlashCommandBuilder().setName('painel').setDescription('Painéis')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .addSubcommand(s => s.setName('criar').setDescription('Criar')
-      .addStringOption(o => o.setName('nome').setDescription('Nome').setRequired(true))
-      .addStringOption(o => o.setName('titulo').setDescription('Título').setRequired(true))
-      .addStringOption(o => o.setName('descricao').setDescription('Desc').setRequired(true)))
-    .addSubcommand(s => s.setName('opcao').setDescription('Opção')
-      .addStringOption(o => o.setName('painel_id').setDescription('ID').setRequired(true))
-      .addStringOption(o => o.setName('label').setDescription('Label').setRequired(true))
-      .addStringOption(o => o.setName('value').setDescription('Value').setRequired(true)))
-    .addSubcommand(s => s.setName('listar').setDescription('Listar'))
-    .addSubcommand(s => s.setName('enviar').setDescription('Enviar')
-      .addStringOption(o => o.setName('painel_id').setDescription('ID').setRequired(true))
-      .addChannelOption(o => o.setName('canal').setDescription('Canal').setRequired(true)))
-    .addSubcommand(s => s.setName('apagar').setDescription('Apagar')
-      .addStringOption(o => o.setName('painel_id').setDescription('ID').setRequired(true)))
-    .toJSON(),
-
-  new SlashCommandBuilder().setName('premium').setDescription('Ativar plano')
-    .addStringOption(o => o.setName('chave').setDescription('Chave').setRequired(true)).toJSON(),
-
-  new SlashCommandBuilder().setName('gerar-chave').setDescription('Gerar chave')
-    .addStringOption(o => o.setName('tier').setDescription('Tier').setRequired(true)
-      .addChoices({ name: 'Básico', value: 'basico' }, { name: 'Pro', value: 'pro' }, { name: 'Premium', value: 'premium' }))
-    .addIntegerOption(o => o.setName('dias').setDescription('Dias').setMinValue(1).setMaxValue(365))
-    .toJSON(),
-
-  new SlashCommandBuilder().setName('admin-chaves').setDescription('Admin')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .addSubcommand(s => s.setName('stats').setDescription('Stats'))
-    .addSubcommand(s => s.setName('listar').setDescription('Listar'))
-    .addSubcommand(s => s.setName('revogar').setDescription('Revogar').addStringOption(o => o.setName('chave').setDescription('Chave').setRequired(true)))
-    .toJSON()
-
-        new SlashCommandBuilder().setName('criar-cargos').setDescription('🛠️ Cria todos os cargos do servidor automaticamente (admin)')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .toJSON()
+const ROLES = [
+  {
+    id: '1550966636733792356',
+    nome: '👑 Dono',
+    cor: 0xE74C3C,
+    hoist: true,
+    mentionable: false,
+    perms: ['Administrator']
+  },
+  {
+    id: '1550966850295435275',
+    nome: '🛠️ Coordenador',
+    cor: 0xE67E22,
+    hoist: true,
+    mentionable: true,
+    perms: [
+      'ViewChannel', 'ManageChannels', 'ViewAuditLog',
+      'CreateInstantInvite', 'ChangeNickname', 'ManageNicknames',
+      'ModerateMembers', 'SendMessages', 'SendMessagesInThreads',
+      'CreatePublicThreads', 'CreatePrivateThreads', 'EmbedLinks',
+      'AttachFiles', 'AddReactions', 'UseExternalEmojis',
+      'UseExternalStickers', 'ManageMessages', 'PinMessages',
+      'MentionEveryone', 'ManageThreads', 'ReadMessageHistory',
+      'UseApplicationCommands', 'UseActivities',
+      'CreateEvents', 'ManageEvents', 'UseSoundboard',
+      'UseExternalSounds', 'UseVAD', 'Connect', 'Speak',
+      'Stream', 'SendVoiceMessages'
+    ]
+  },
+  {
+    id: '1550966912392101958',
+    nome: '🔧 Gestor',
+    cor: 0x2ECC71,
+    hoist: true,
+    mentionable: true,
+    perms: [
+      'ViewChannel', 'ViewAuditLog', 'CreateInstantInvite',
+      'ChangeNickname', 'KickMembers', 'BanMembers',
+      'ModerateMembers', 'SendMessages', 'SendMessagesInThreads',
+      'CreatePublicThreads', 'CreatePrivateThreads', 'EmbedLinks',
+      'AttachFiles', 'AddReactions', 'UseExternalEmojis',
+      'UseExternalStickers', 'ManageMessages', 'PinMessages',
+      'ManageThreads', 'ReadMessageHistory',
+      'UseApplicationCommands', 'UseActivities',
+      'UseSoundboard', 'UseExternalSounds', 'UseVAD',
+      'Connect', 'Speak', 'Stream', 'SendVoiceMessages'
+    ]
+  },
+  {
+    id: '1550966980637364284',
+    nome: '🛡️ Moderador',
+    cor: 0x3498DB,
+    hoist: true,
+    mentionable: true,
+    perms: [
+      'ViewChannel', 'ViewAuditLog', 'CreateInstantInvite',
+      'ChangeNickname', 'ManageNicknames', 'KickMembers',
+      'BanMembers', 'ModerateMembers', 'SendMessages',
+      'SendMessagesInThreads', 'CreatePublicThreads',
+      'EmbedLinks', 'AttachFiles', 'AddReactions',
+      'UseExternalEmojis', 'UseExternalStickers',
+      'ManageMessages', 'ManageThreads', 'ReadMessageHistory',
+      'UseApplicationCommands', 'UseActivities',
+      'UseVAD', 'Connect', 'Speak', 'Stream',
+      'MuteMembers', 'DeafMembers', 'MoveMembers',
+      'SendVoiceMessages'
+    ]
+  },
+  {
+    id: '1550967050757734470',
+    nome: '🎫 Suporte',
+    cor: 0xF1C40F,
+    hoist: true,
+    mentionable: true,
+    perms: [
+      'ViewChannel', 'SendMessages', 'SendMessagesInThreads',
+      'EmbedLinks', 'AttachFiles', 'AddReactions',
+      'UseExternalEmojis', 'UseExternalStickers',
+      'ReadMessageHistory', 'UseApplicationCommands',
+      'UseActivities', 'UseVAD', 'Connect', 'Speak',
+      'Stream', 'SendVoiceMessages'
+    ]
+  },
+  {
+    id: '1550938967384260731',
+    nome: '🤖 Pratic Bot',
+    cor: 0x95A5A6,
+    hoist: true,
+    mentionable: false,
+    perms: [
+      'ViewChannel', 'SendMessages', 'SendMessagesInThreads',
+      'EmbedLinks', 'AttachFiles', 'AddReactions',
+      'UseExternalEmojis', 'UseExternalStickers',
+      'ManageMessages', 'ManageThreads', 'ReadMessageHistory',
+      'UseApplicationCommands'
+    ]
+  },
+  {
+    id: '1550967483937198102',
+    nome: '⭐ Premium',
+    cor: 0xF1C40F,
+    hoist: true,
+    mentionable: true,
+    perms: [
+      'ViewChannel', 'CreateInstantInvite', 'ChangeNickname',
+      'SendMessages', 'SendMessagesInThreads',
+      'CreatePublicThreads', 'CreatePrivateThreads',
+      'EmbedLinks', 'AttachFiles', 'AddReactions',
+      'UseExternalEmojis', 'UseExternalStickers',
+      'ReadMessageHistory', 'UseApplicationCommands',
+      'UseActivities', 'UseSoundboard', 'UseExternalSounds',
+      'UseVAD', 'Connect', 'Speak', 'Stream'
+    ]
+  },
+  {
+    id: '1550967562957750272',
+    nome: '🔵 Pro',
+    cor: 0x5DADE2,
+    hoist: true,
+    mentionable: true,
+    perms: [
+      'ViewChannel', 'CreateInstantInvite', 'ChangeNickname',
+      'SendMessages', 'SendMessagesInThreads',
+      'CreatePublicThreads', 'EmbedLinks', 'AttachFiles',
+      'AddReactions', 'UseExternalEmojis', 'UseExternalStickers',
+      'ReadMessageHistory', 'UseApplicationCommands',
+      'UseActivities', 'UseSoundboard', 'UseExternalSounds',
+      'UseVAD', 'Connect', 'Speak', 'Stream'
+    ]
+  },
+  {
+    id: '1550967620730097734',
+    nome: '🟣 Básico',
+    cor: 0x9B59B6,
+    hoist: true,
+    mentionable: true,
+    perms: [
+      'ViewChannel', 'CreateInstantInvite', 'ChangeNickname',
+      'SendMessages', 'SendMessagesInThreads',
+      'CreatePublicThreads', 'EmbedLinks', 'AttachFiles',
+      'AddReactions', 'UseExternalEmojis', 'UseExternalStickers',
+      'ReadMessageHistory', 'UseApplicationCommands',
+      'UseVAD', 'Connect', 'Speak', 'SendVoiceMessages'
+    ]
+  },
+  {
+    id: '1550967711335456870',
+    nome: '👤 Membro',
+    cor: 0xBDC3C7,
+    hoist: false,
+    mentionable: false,
+    perms: [
+      'ViewChannel', 'SendMessages', 'EmbedLinks',
+      'AttachFiles', 'AddReactions', 'ReadMessageHistory',
+      'UseVAD', 'Connect', 'Speak'
+    ]
+  }
 ];
 
 // ============================================================
-// BOT
+// APLICAR PERMISSÕES (não cria — só edita os existentes)
 // ============================================================
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.DirectMessages
-  ],
-  partials: [Partials.Channel, Partials.Message, Partials.GuildMember]
-});
+export async function criarTodosCargos(interaction) {
+  const guild = interaction.guild;
 
-await connectDB();
-
-client.once('clientReady', async () => {
-  // ============================================================
-  // REGISTAR COMANDOS AUTOMATICAMENTE
-  // ============================================================
-  try {
-    console.log('🔄 A registar comandos slash...');
-    const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
-    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: cmds });
-    console.log(`✅ ${cmds.length} comandos registados!`);
-  } catch (e) {
-    console.error('❌ Erro ao registar comandos:', e.message);
+  const bot = guild.members.me;
+  if (!bot.permissions.has(PermissionFlagsBits.ManageRoles)) {
+    return interaction.reply({
+      content: '❌ Preciso da permissão **Gerir Cargos** para editar roles.',
+      ephemeral: true
+    });
   }
 
-  handleReady(client);
-});
+  await interaction.reply({
+    content: '⏳ **A aplicar permissões aos 10 cargos...** Isto demora ~20 segundos.',
+    ephemeral: true
+  });
 
-client.on('interactionCreate', (i) => handleInteraction(i, client));
-client.on('guildCreate', (g) => handleGuildCreate(g, client));
+  const aplicados = [];
+  const naoEncontrados = [];
+  const erros = [];
 
-// ============================================================
-// HEALTH CHECK
-// ============================================================
-const PORT = process.env.PORT || 10000;
+  for (const roleDef of ROLES) {
+    try {
+      // Procura o cargo APENAS pelo ID
+      let role = guild.roles.cache.get(roleDef.id);
 
-const server = http.createServer((req, res) => {
-  if (req.url === '/health' || req.url === '/') {
-    const uptime = Math.floor(process.uptime());
-    const ready = client.isReady?.() ? 'ready' : 'starting';
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      status: 'ok',
-      bot: client.user?.tag || 'offline',
-      ready,
-      uptime,
-      servers: client.guilds?.cache?.size || 0,
-      time: new Date().toISOString()
-    }));
-    return;
+      // Se não estiver em cache, tenta fetch
+      if (!role) {
+        role = await guild.roles.fetch(roleDef.id).catch(() => null);
+      }
+
+      if (!role) {
+        naoEncontrados.push(`${roleDef.nome} (ID: \`${roleDef.id}\`)`);
+        continue;
+      }
+
+      // Converte perms para BigInt
+      const permissions = roleDef.perms.map(p => {
+        if (typeof p === 'bigint') return p;
+        return PermissionFlagsBits[p] || 0n;
+      });
+
+      // Aplica tudo: nome, cor, hoist, mentionable, permissões
+      await role.edit({
+        name: roleDef.nome,
+        color: roleDef.cor,
+        hoist: roleDef.hoist,
+        mentionable: roleDef.mentionable,
+        permissions: permissions,
+        reason: 'Setup Pratic Bot'
+      });
+
+      aplicados.push(`${roleDef.nome} — \`${role.id}\``);
+    } catch (e) {
+      console.error(`Erro em ${roleDef.nome}:`, e.message);
+      erros.push(`${roleDef.nome}: ${e.message}`);
+    }
   }
-  res.writeHead(404);
-  res.end('Not found');
-});
 
-server.listen(PORT, () => {
-  console.log(`🌐 Health check ativo em http://localhost:${PORT}/health`);
-});
+  // ============================================================
+  // REPORT
+  // ============================================================
+  const embed = new EmbedBuilder()
+    .setTitle('✅ Permissões Aplicadas')
+    .setColor('#57f287')
+    .setTimestamp();
 
-client.login(process.env.TOKEN);
+  if (aplicados.length) {
+    embed.addFields({
+      name: `✅ Aplicados (${aplicados.length})`,
+      value: aplicados.join('\n').slice(0, 1024)
+    });
+  }
 
-process.on('unhandledRejection', (err) => console.error('[Unhandled]', err));
-process.on('uncaughtException', (err) => console.error('[Uncaught]', err));
+  if (naoEncontrados.length) {
+    embed.addFields({
+      name: `⚠️ Não encontrados (${naoEncontrados.length})`,
+      value: naoEncontrados.join('\n').slice(0, 1024) +
+        '\n\n**Verifica se os IDs estão corretos** ou se o cargo ainda existe.'
+    });
+  }
+
+  if (erros.length) {
+    embed.addFields({
+      name: `❌ Erros (${erros.length})`,
+      value: erros.join('\n').slice(0, 1024)
+    });
+  }
+
+  embed.addFields({
+    name: '📌 Próximo passo',
+    value:
+      'Ordena os cargos manualmente:\n' +
+      '**Configurações do Servidor → Cargos**\n\n' +
+      'Arrasta para a ordem correta:\n' +
+      '1. 👑 Dono\n' +
+      '2. 🛠️ Coordenador\n' +
+      '3. 🔧 Gestor\n' +
+      '4. 🛡️ Moderador\n' +
+      '5. 🎫 Suporte\n' +
+      '6. 🤖 Pratic Bot\n' +
+      '7. ⭐ Premium\n' +
+      '8. 🔵 Pro\n' +
+      '9. 🟣 Básico\n' +
+      '10. 👤 Membro'
+  });
+
+  return interaction.editReply({ content: null, embeds: [embed] });
+}
