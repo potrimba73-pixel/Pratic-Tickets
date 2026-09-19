@@ -114,16 +114,10 @@ async function handleCommand(interaction, client) {
   const locale = config.locale || 'pt-PT';
   const limits = getLimits(config.tier);
 
-  if (commandName === 'setup') {
-    return interaction.reply({
-      embeds: [new EmbedBuilder()
-        .setTitle(t(locale, 'setup.title'))
-        .setDescription(t(locale, 'setup.desc') + '\n\n' + t(locale, 'setup.steps') + `\n\n**Plano:** ${limits.nome}`)
-        .setColor('#5865f2')],
-      ephemeral: true
-    });
-  }
-
+if (commandName === 'setup') {
+  return enviarSetup(interaction);
+}
+  
   if (commandName === 'config') {
     const sub = interaction.options.getSubcommand();
     if (sub === 'ver') {
