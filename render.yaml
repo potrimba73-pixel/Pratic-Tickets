@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: pratic-bot
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: TOKEN
+        sync: false
+      - key: CLIENT_ID
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: ADMIN_KEY
+        sync: false
