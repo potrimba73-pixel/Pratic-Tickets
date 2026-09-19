@@ -1,0 +1,18 @@
+{
+  "name": "pratic-bot",
+  "version": "1.0.0",
+  "description": "Pratic Bot — Sistema de tickets multi-servidor em PT/ES/RU/EN",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "register": "node deploy/register.js",
+    "chave": "node deploy/gerar-chave.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "mongodb": "^6.10.0",
+    "dotenv": "^16.4.5"
+  },
+  "engines": { "node": ">=18.0.0" }
+}
