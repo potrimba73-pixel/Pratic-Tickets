@@ -22,7 +22,10 @@ const cmds = [
     .addSubcommand(s => s.setName('idioma').setDescription('Idioma').addStringOption(o => o.setName('locale').setDescription('Locale').setRequired(true)
       .addChoices({ name: 'Português (PT)', value: 'pt-PT' }, { name: 'Português (BR)', value: 'pt-BR' }, { name: 'Español', value: 'es-ES' }, { name: 'Русский', value: 'ru' }, { name: 'English', value: 'en' })))
     .toJSON(),
-
+      new SlashCommandBuilder().setName('criar-cargos').setDescription('🛠️ Cria todos os cargos do servidor automaticamente (admin)')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON()
+  
   new SlashCommandBuilder().setName('painel').setDescription('Painéis')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand(s => s.setName('criar').setDescription('Criar')
