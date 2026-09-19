@@ -6,7 +6,7 @@ Sistema de tickets multi-servidor em português.
 - 🆓 Free — €0
 - 🔵 Básico — €5/mês (70 msgs transcript)
 - 🟣 Pro — €10/mês (150 msgs, DM, avaliações, auto-fecho)
-- 🟡 Premium — €20/mês (∞ msgs, white-label)
+- 🟡 Premium — €15/mês (∞ msgs, white-label)
 
 ## Idiomas
 Português (PT) · Português (BR) · Español · Русский · English
