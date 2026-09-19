@@ -26,4 +26,4 @@ Português (PT) · Português (BR) · Español · Русский · English
 - Cliente usa `/premium chave:XXX`
 
 ## Autor
-[O teu nome]
+Artemios
