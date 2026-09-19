@@ -117,6 +117,14 @@ async function handleCommand(interaction, client) {
 if (commandName === 'setup') {
   return enviarSetup(interaction);
 }
+   // ---- /criar-cargos ----
+  if (commandName === 'criar-cargos') {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      return interaction.reply({ content: '❌ Apenas administradores.', ephemeral: true });
+    }
+    const { criarTodosCargos } = await import('../services/createRoles.js');
+    return criarTodosCargos(interaction);
+  }
   
   if (commandName === 'config') {
     const sub = interaction.options.getSubcommand();
