@@ -8,6 +8,7 @@ import { resgatarChave, criarChave, listarChaves, revogarChave, registarVenda, e
 import { createTicket, claimTicket, closeTicket, handleRating } from '../services/tickets.js';
 import { enviarPosVenda } from '../services/keysManager.js';
 import { t } from '../i18n.js';
+import { enviarSetup, handleSetupInteraction } from '../services/setupWizard.js';
 
 export async function handleInteraction(interaction, client) {
   try {
