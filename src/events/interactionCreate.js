@@ -117,7 +117,7 @@ async function handleCommand(interaction, client) {
 if (commandName === 'setup') {
   return enviarSetup(interaction);
 }
-   // ---- /criar-cargos ----
+  // ---- /criar-cargos ----
   if (commandName === 'criar-cargos') {
     if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
       return interaction.reply({ content: '❌ Apenas administradores.', ephemeral: true });
