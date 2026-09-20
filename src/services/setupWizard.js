@@ -458,69 +458,126 @@ async function renderPaineis(i) {
   const limits = getLimits(config.tier);
   const maxP = limits.maxPanels === 999 ? '∞' : limits.maxPanels;
 
-  const desc = config.panels.length
-    ? config.panels.map((p, n) =>
-        `**${n + 1}. ${p.nome}**\n> ${EMOJI.panel} \`${p.id}\` · opções: \`${p.options.length}/${limits.maxOptions}\`\n> *${p.title}*`
-      ).join('\n\n')
-    : '**Ainda não tens painéis.**\n> Clica em **Criar Painel** para começar.';
+  const embed = new EmbedBuilder()
+    .setTitle(`${EMOJI.panels} Os teus painéis (${config.panels.length}/${maxP})`)
+    .setColor(BRAND.color)
+    .setFooter(footer())
+    .setTimestamp();
 
-  const e = sec(`${EMOJI.panels} Painéis (${config.panels.length}/${maxP})`, desc);
+  if (!config.panels.length) {
+    embed.setDescription(
+      '**Ainda não tens painéis.**\n\n' +
+      `> ${EMOJI.arrow} Clica em **Criar Painel** para começar.\n` +
+      `> ${EMOJI.arrow} Cada painel é um menu (Suporte, Compras, etc.).`
+    );
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('setup_painel_novo').setLabel('Criar Painel').setEmoji(EMOJI.add).setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('setup_home').setLabel('Voltar').setEmoji(EMOJI.back).setStyle(ButtonStyle.Secondary)
+    );
+    return i.update({ embeds: [embed], components: [row] });
+  }
 
-  const row = new ActionRowBuilder().addComponents(
+  embed.setDescription(
+    config.panels.map((p, n) => {
+      const pronto = p.options.length > 0;
+      return `**${n + 1}. ${p.nome}** ${pronto ? '🟢' : '🔴'}\n` +
+        `> ${EMOJI.panel} \`${p.id}\` · opções: **${p.options.length}/${limits.maxOptions}**\n` +
+        `> *${p.title}*`;
+    }).join('\n\n')
+  );
+
+  // 🎛️ Dropdown para escolher painel + enviar
+  const select = new StringSelectMenuBuilder()
+    .setCustomId('setup_envio_choose')
+    .setPlaceholder(`${EMOJI.arrow} Escolhe um painel para enviar`)
+    .addOptions(config.panels.slice(0, 25).map(p => ({
+      label: p.nome.slice(0, 100),
+      value: p.id,
+      description: `${p.options.length} opções · ${p.title}`.slice(0, 100),
+      emoji: p.options.length ? '🟢' : '🔴'
+    })));
+
+  const row1 = new ActionRowBuilder().addComponents(select);
+  const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('setup_painel_novo').setLabel('Criar Painel').setEmoji(EMOJI.add).setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('setup_painel_envio').setLabel('Enviar painel').setEmoji('📤').setStyle(ButtonStyle.Primary),
-    backRow().components[0]
+    new ButtonBuilder().setCustomId('setup_home').setLabel('Voltar').setEmoji(EMOJI.back).setStyle(ButtonStyle.Secondary)
   );
-  await i.update({ embeds: [e], components: [row] });
+
+  await i.update({ embeds: [embed], components: [row1, row2] });
 }
 
-async function abrirModalPainel(i) {
+// 🎯 Escolheu painel → mostra select de canal
+async function renderEnvioCanal(i) {
+  const panelId = i.values[0];
   const config = await getGuildConfig(i.guildId);
-  const lim = getLimits(config.tier);
-  if (config.panels.length >= lim.maxPanels) {
-    return i.reply({ content: `${EMOJI.error} Limite de **${lim.maxPanels}** painéis do plano ${lim.nome}.`, ephemeral: true });
-  }
-  const modal = new ModalBuilder().setCustomId('setup_modal_panel_create').setTitle(`${EMOJI.panel} Criar Painel`);
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('nome').setLabel('Nome interno').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(50)),
-    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('titulo').setLabel('Título do embed').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(100)),
-    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('descricao').setLabel('Descrição do embed').setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(500))
-  );
-  await i.showModal(modal);
-}
+  const panel = config.panels.find(p => p.id === panelId);
+  if (!panel) return i.reply({ content: '❌ Painel não encontrado.', ephemeral: true });
 
-async function guardarPainel(i) {
-  const config = await getGuildConfig(i.guildId);
-  const lim = getLimits(config.tier);
-  if (config.panels.length >= lim.maxPanels) {
-    return i.reply({ content: `${EMOJI.error} Limite atingido.`, ephemeral: true });
+  if (!panel.options.length) {
+    return i.reply({ content: `❌ O painel **${panel.nome}** não tem opções. Adiciona com \`/painel opcao\`.`, ephemeral: true });
   }
-  const nome = i.fields.getTextInputValue('nome').slice(0, 50);
-  const titulo = i.fields.getTextInputValue('titulo').slice(0, 100);
-  const descricao = i.fields.getTextInputValue('descricao').slice(0, 500);
-  const id = `p_${Date.now().toString(36)}`;
-
-  config.panels.push({ id, nome, title: titulo, descricao, color: '#5865f2', options: [] });
-  await updateGuildConfig(i.guildId, { panels: config.panels });
 
   const embed = new EmbedBuilder()
-    .setTitle(`${EMOJI.sparkle} Painel criado!`)
+    .setTitle(`📤 Enviar painel **${panel.nome}**`)
     .setDescription(
-      `**${nome}** · ID \`${id}\`\n\n` +
-      `**Próximo passo — adiciona opções:**\n` +
-      '```\n' +
-      `/painel opcao painel_id:${id} label:Suporte value:suporte\n` +
-      '```'
+      `> ${EMOJI.panel} \`${panel.id}\`\n` +
+      `> ${EMOJI.info} ${panel.options.length} opções\n\n` +
+      `**Escolhe o canal onde queres publicar:**`
     )
-    .setColor(BRAND.success).setFooter(footer()).setTimestamp();
+    .setColor(BRAND.color)
+    .setFooter(footer());
 
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('setup_paineis').setLabel('Ver Painéis').setEmoji(EMOJI.panels).setStyle(ButtonStyle.Primary),
-    backRow().components[0]
+  const channelSelect = new ChannelSelectMenuBuilder()
+    .setCustomId(`setup_envio_channel_${panel.id}`)
+    .setPlaceholder('📢 Escolhe o canal')
+    .addChannelTypes(ChannelType.GuildText)
+    .setMinValues(1).setMaxValues(1);
+
+  const row = new ActionRowBuilder().addComponents(channelSelect);
+  const back = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('setup_paineis').setLabel('Voltar').setEmoji(EMOJI.back).setStyle(ButtonStyle.Secondary)
   );
-  await i.reply({ embeds: [embed], components: [row], ephemeral: true });
+
+  await i.update({ embeds: [embed], components: [row, back] });
 }
 
+// 🎯 Escolheu canal → envia o painel
+async function enviarPainelFinal(i, panelId) {
+  const config = await getGuildConfig(i.guildId);
+  const limits = getLimits(config.tier);
+  const panel = config.panels.find(p => p.id === panelId);
+  if (!panel) return i.reply({ content: '❌ Painel não encontrado.', ephemeral: true });
+
+  const canal = i.guild.channels.cache.get(i.values[0]);
+  if (!canal) return i.reply({ content: '❌ Canal não encontrado.', ephemeral: true });
+
+  // Dedupe
+  const unique = [];
+  const seen = new Set();
+  for (const o of panel.options) {
+    const v = o.value.slice(0, 100);
+    if (seen.has(v)) continue;
+    seen.add(v);
+    unique.push({ label: o.label.slice(0, 100), value: v });
+    if (unique.length >= 10) break;
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle(panel.title)
+    .setDescription(panel.descricao)
+    .setTimestamp();
+
+  aplicarBranding(embed, config, { color: panel.color || '#5865f2' });
+  if (limits.watermark) embed.setFooter({ text: 'Pratic Bot' });
+
+  const select = new StringSelectMenuBuilder().setCustomId(`panel_${panel.id}`)
+    .setPlaceholder(config.locale === 'en' ? 'Choose an option' : 'Escolhe uma opção')
+    .addOptions(unique);
+
+  await canal.send({ embeds: [embed], components: [new ActionRowBuilder().addComponents(select)] });
+
+  await i.reply({ content: `${EMOJI.success} Painel **${panel.nome}** enviado para <#${canal.id}>!`, ephemeral: true });
+}
 // ============================================================
 // TESTE + AJUDA
 // ============================================================
