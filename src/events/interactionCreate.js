@@ -10,6 +10,7 @@ import { enviarPosVenda } from '../services/keysManager.js';
 import { t } from '../i18n.js';
 import { enviarSetup, handleSetupInteraction } from '../services/setupWizard.js';
 import { aplicarBranding } from '../services/branding.js';
+import { gerarErrorId, registarErro, obterErro, listarRecentes } from '../utils/errorTracker.js';
 
 export async function handleInteraction(interaction, client) {
   try {
@@ -28,6 +29,13 @@ export async function handleInteraction(interaction, client) {
 
     if (interaction.isButton()) {
       const { customId } = interaction;
+
+      // 🎯 Botões de painel (formato: panelbtn|panelId|value)
+      if (customId.startsWith('panelbtn|')) {
+        const [, panelId, optionValue] = customId.split('|');
+        return createTicket(interaction, panelId, optionValue);
+      }
+
       if (customId.startsWith('claim_'))    return claimTicket(interaction);
       if (customId.startsWith('close_'))    return closeTicket(interaction);
       if (customId.startsWith('rate_'))     return handleRating(interaction);
@@ -43,9 +51,34 @@ export async function handleInteraction(interaction, client) {
 
     if (interaction.isModalSubmit()) return handleModal(interaction);
   } catch (e) {
-    console.error(e);
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: '❌ Ocorreu um erro.', ephemeral: true }).catch(() => {});
+    // ============================================================
+    // 🚨 ERROR TRACKER — correlation ID
+    // ============================================================
+    const id = gerarErrorId();
+    registarErro(id, e, {
+      user: interaction.user?.id,
+      userTag: interaction.user?.tag,
+      guildId: interaction.guildId,
+      guildName: interaction.guild?.name,
+      channelId: interaction.channelId,
+      type: interaction.type,
+      command: interaction.commandName || null,
+      customId: interaction.customId || null
+    });
+
+    const msg =
+      `❌ Ocorreu um erro inesperado.\n` +
+      `**Código:** \`${id}\`\n` +
+      `> Diz este código ao suporte para investigarem.`;
+
+    try {
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp({ content: msg, ephemeral: true });
+      } else {
+        await interaction.reply({ content: msg, ephemeral: true });
+      }
+    } catch {
+      // Já registámos o erro — não vale a pena fazer nada se isto também falhar
     }
   }
 }
@@ -142,7 +175,6 @@ async function handleCommand(interaction, client) {
   if (commandName === 'painel') {
     const sub = interaction.options.getSubcommand();
 
-    // CR I AR
     if (sub === 'criar') {
       if (config.panels.length >= limits.maxPanels) {
         return interaction.reply({ content: `❌ Limite de ${limits.maxPanels} painéis.`, ephemeral: true });
@@ -150,13 +182,14 @@ async function handleCommand(interaction, client) {
       const nome = interaction.options.getString('nome');
       const titulo = interaction.options.getString('titulo');
       const descricao = interaction.options.getString('descricao');
+      const corInput = (interaction.options.getString('cor') || '#5865f2').trim();
+      const cor = /^#[0-9a-fA-F]{6}$/.test(corInput) ? corInput : '#5865f2';
       const id = `p_${Date.now().toString(36)}`;
-      config.panels.push({ id, nome, title: titulo, descricao, color: '#5865f2', options: [] });
+      config.panels.push({ id, nome, title: titulo, descricao, color: cor, options: [] });
       await updateGuildConfig(interaction.guildId, { panels: config.panels });
       return interaction.reply({ content: t(locale, 'panel.created', { id }), ephemeral: true });
     }
 
-    // O P Ç Ã O
     if (sub === 'opcao') {
       const pid = interaction.options.getString('painel_id');
       const label = interaction.options.getString('label');
@@ -174,13 +207,11 @@ async function handleCommand(interaction, client) {
       return interaction.reply({ content: t(locale, 'panel.optionAdded', { n: panel.options.length, max: limits.maxOptions }), ephemeral: true });
     }
 
-    // L I S T A R
     if (sub === 'listar') {
       const txt = config.panels.map(p => `**${p.nome}** — \`${p.id}\` — ${p.options.length} opções`).join('\n') || t(locale, 'panel.listEmpty');
       return interaction.reply({ content: txt, ephemeral: true });
     }
 
-    // E N V I A R
     if (sub === 'enviar') {
       const pid = interaction.options.getString('painel_id');
       const canal = interaction.options.getChannel('canal');
@@ -189,7 +220,7 @@ async function handleCommand(interaction, client) {
         return interaction.reply({ content: '❌ Painel não tem opções.', ephemeral: true });
       }
 
-      // 🧹 Remover valores duplicados (Discord rejeita duplicados)
+      // Dedupe
       const unique = [];
       const seen = new Set();
       for (const o of panel.options) {
@@ -217,7 +248,6 @@ async function handleCommand(interaction, client) {
       return interaction.reply({ content: t(locale, 'panel.sent', { channel: `<#${canal.id}>` }), ephemeral: true });
     }
 
-    // A P A G A R
     if (sub === 'apagar') {
       const pid = interaction.options.getString('painel_id');
       config.panels = config.panels.filter(p => p.id !== pid);
@@ -257,6 +287,59 @@ async function handleCommand(interaction, client) {
       const c = interaction.options.getString('chave');
       const ok = await revogarChave(c);
       return interaction.reply({ content: ok ? '✅ Revogada' : '❌ Não encontrada', ephemeral: true });
+    }
+  }
+
+  // ---- /erro (só o dono do bot) ----
+  if (commandName === 'erro') {
+    if (interaction.user.id !== process.env.ADMIN_KEY) {
+      return interaction.reply({ content: '❌ Só o dono do bot.', ephemeral: true });
+    }
+    const sub = interaction.options.getSubcommand();
+
+    if (sub === 'ver') {
+      const id = interaction.options.getString('id').toUpperCase();
+      const e = obterErro(id);
+
+      if (!e) {
+        return interaction.reply({
+          content: `❌ Erro \`${id}\` não encontrado (só guardo os últimos 200 — reinícios limpam o cache).`,
+          ephemeral: true
+        });
+      }
+
+      const stackCurto = (e.stack || '').split('\n').slice(0, 8).join('\n').slice(0, 1800);
+
+      const embed = new EmbedBuilder()
+        .setTitle(`🚨 Erro ${e.id}`)
+        .setDescription('```\n' + (e.message || '').slice(0, 400) + '\n```')
+        .addFields(
+          { name: 'Quando',  value: `<t:${Math.floor(e.ts.getTime()/1000)}:R>`, inline: true },
+          { name: 'Código',  value: e.code ? `\`${e.code}\`` : '—',             inline: true },
+          { name: 'Guild',   value: e.ctx.guildName ? `${e.ctx.guildName}\n\`${e.ctx.guildId}\`` : '—', inline: false },
+          { name: 'User',    value: e.ctx.userTag ? `${e.ctx.userTag}\n\`${e.ctx.user}\`` : '—', inline: false },
+          { name: 'Comando', value: e.ctx.command || e.ctx.customId || '—',     inline: false },
+          { name: 'Stack',   value: '```\n' + stackCurto + '\n```',              inline: false }
+        )
+        .setColor('#ed4245')
+        .setFooter({ text: 'Pratic Bot • error tracker' })
+        .setTimestamp(e.ts);
+
+      return interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+
+    if (sub === 'recentes') {
+      const lista = listarRecentes(10);
+
+      if (!lista.length) {
+        return interaction.reply({ content: '✅ Nenhum erro registado.', ephemeral: true });
+      }
+
+      const txt = lista.map(e =>
+        `\`${e.id}\` <t:${Math.floor(e.ts.getTime()/1000)}:R> — ${e.message.slice(0, 80)}`
+      ).join('\n');
+
+      return interaction.reply({ content: txt, ephemeral: true });
     }
   }
 }
