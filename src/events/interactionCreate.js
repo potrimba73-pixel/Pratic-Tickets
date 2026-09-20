@@ -228,7 +228,7 @@ if (commandName === 'setup') {
     const res = await resgatarChave(chave, interaction.guildId, interaction.user.id);
     if (!res.ok) return interaction.reply({ content: res.error === 'invalid' ? t(locale, 'premium.invalid') : t(locale, 'premium.used'), ephemeral: true });
     await updateGuildConfig(interaction.guildId, { tier: res.tier, premiumUntil: res.expiraEm });
-    const valor = { basico: 5, pro: 10, premium: 20 }[res.tier] || 0;
+    const valor = { basico: 5, pro: 10, premium: 15 }[res.tier] || 0;
     await registarVenda({ chave: chave.toUpperCase(), tier: res.tier, guildId: interaction.guildId, guildNome: interaction.guild.name, userId: interaction.user.id, valor });
     await enviarPosVenda(interaction, res.tier, res.expiraEm);
     const l2 = getLimits(res.tier);
