@@ -57,7 +57,7 @@ export async function estatisticasVendas() {
   const porTier = {};
   for (const v of vendas) porTier[v.tier] = (porTier[v.tier] || 0) + 1;
   const guilds = await getDB().collection('guilds').find({ tier: { $ne: 'free' } }).toArray();
-  const precos = { basico: 5, pro: 10, premium: 20 };
+  const precos = { basico: 5, pro: 10, premium: 15 };  // 20 → 15
   const recorrente = guilds.reduce((s, g) => s + (precos[g.tier] || 0), 0);
   return { totalVendas: vendas.length, totalEuros: total, porTier, clientesAtivos: guilds.length, recorrente };
 }
