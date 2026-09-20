@@ -12,11 +12,17 @@ import { enviarSetup, handleSetupInteraction } from '../services/setupWizard.js'
 import { aplicarBranding } from '../services/branding.js';
 import { gerarErrorId, registarErro, obterErro, listarRecentes } from '../utils/errorTracker.js';
 
+// ============================================================
+// 🎯 IDs FIXOS
+// ============================================================
+export const OWNER_ID   = '996454465555136675';     // o teu ID de dono
+export const HOME_GUILD = '1550930566054936787';    // servidor onde vivem os comandos de admin
+
+// ============================================================
+// HANDLER PRINCIPAL
+// ============================================================
 export async function handleInteraction(interaction, client) {
   try {
-    // ============================================================
-    // 🎯 SETUP WIZARD — apanha TODOS os customIds "setup_*"
-    // ============================================================
     if (interaction.customId?.startsWith('setup_')) {
       return handleSetupInteraction(interaction);
     }
@@ -30,7 +36,6 @@ export async function handleInteraction(interaction, client) {
     if (interaction.isButton()) {
       const { customId } = interaction;
 
-      // 🎯 Botões de painel (formato: panelbtn|panelId|value)
       if (customId.startsWith('panelbtn|')) {
         const [, panelId, optionValue] = customId.split('|');
         return createTicket(interaction, panelId, optionValue);
@@ -51,9 +56,6 @@ export async function handleInteraction(interaction, client) {
 
     if (interaction.isModalSubmit()) return handleModal(interaction);
   } catch (e) {
-    // ============================================================
-    // 🚨 ERROR TRACKER — correlation ID
-    // ============================================================
     const id = gerarErrorId();
     registarErro(id, e, {
       user: interaction.user?.id,
@@ -77,14 +79,12 @@ export async function handleInteraction(interaction, client) {
       } else {
         await interaction.reply({ content: msg, ephemeral: true });
       }
-    } catch {
-      // Já registámos o erro — não vale a pena fazer nada se isto também falhar
-    }
+    } catch {}
   }
 }
 
 // ============================================================
-// HELPERS DE BOTÕES DO TICKET
+// HELPERS DOS BOTÕES DO TICKET
 // ============================================================
 async function notifyStaff(interaction) {
   const config = await getGuildConfig(interaction.guildId);
@@ -106,7 +106,7 @@ async function togglePriority(interaction) {
   if (!ticket) return interaction.reply({ content: '❌', ephemeral: true });
   ticket.priority = !ticket.priority;
   await updateGuildConfig(interaction.guildId, { tickets: config.tickets });
-  await interaction.reply({ content: `⚡ ${ticket.priority ? 'Prioridade ON' : 'Prioridade OFF'}`, ephemeral: true });
+  await interaction.reply({ content: `⚡ ${ticket.priority ? 'ON' : 'OFF'}`, ephemeral: true });
 }
 
 async function toggleLock(interaction) {
@@ -118,7 +118,7 @@ async function toggleLock(interaction) {
 }
 
 async function renameTicket(interaction) {
-  const modal = new ModalBuilder().setCustomId(`renamemodal_${interaction.channel.id}`).setTitle('✏️ Renomear ticket');
+  const modal = new ModalBuilder().setCustomId(`renamemodal_${interaction.channel.id}`).setTitle('✏️ Renomear');
   modal.addComponents(new ActionRowBuilder().addComponents(
     new TextInputBuilder().setCustomId('new_name').setLabel('Novo nome').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(50)
   ));
@@ -149,6 +149,19 @@ async function transferTicket(interaction) {
 }
 
 // ============================================================
+// 🎯 GUARDA: o dono? no servidor home?
+// ============================================================
+function guardOwnerHome(interaction, { precisaHome = true, precisaOwner = true } = {}) {
+  if (precisaOwner && interaction.user.id !== OWNER_ID) {
+    return interaction.reply({ content: '❌ Só o dono do bot pode usar isto.', ephemeral: true });
+  }
+  if (precisaHome && interaction.guildId !== HOME_GUILD) {
+    return interaction.reply({ content: '❌ Este comando só funciona no servidor de suporte.', ephemeral: true });
+  }
+  return null;
+}
+
+// ============================================================
 // COMANDOS
 // ============================================================
 async function handleCommand(interaction, client) {
@@ -157,21 +170,97 @@ async function handleCommand(interaction, client) {
   const locale = config.locale || 'pt-PT';
   const limits = getLimits(config.tier);
 
-  // ---- 🎯 COMANDO PRINCIPAL ----
+  // ============================================================
+  // 🌍 GLOBAIS
+  // ============================================================
   if (commandName === 'pratic') {
     return enviarSetup(interaction);
   }
 
-  // ---- /criar-cargos (admin) ----
+  // ============================================================
+  // 🏠 HOME — só no servidor de suporte + só o dono
+  // ============================================================
   if (commandName === 'criar-cargos') {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return interaction.reply({ content: '❌ Apenas administradores.', ephemeral: true });
-    }
+    const denied = guardOwnerHome(interaction);
+    if (denied) return denied;
     const { criarTodosCargos } = await import('../services/createRoles.js');
     return criarTodosCargos(interaction);
   }
 
-  // ---- /painel ----
+  if (commandName === 'gerar-chave') {
+    const denied = guardOwnerHome(interaction);
+    if (denied) return denied;
+    const tier = interaction.options.getString('tier');
+    const dias = interaction.options.getInteger('dias') || 30;
+    const chave = await criarChave(tier, dias);
+    return interaction.reply({ content: `\`\`\`${chave}\`\`\``, ephemeral: true });
+  }
+
+  if (commandName === 'admin-chaves') {
+    const denied = guardOwnerHome(interaction);
+    if (denied) return denied;
+    const sub = interaction.options.getSubcommand();
+
+    if (sub === 'stats') {
+      const e = await estatisticasVendas();
+      return interaction.reply({ embeds: [new EmbedBuilder().setTitle('📊').addFields(
+        { name: 'Vendas',  value: `${e.totalVendas}`,             inline: true },
+        { name: 'Receita', value: `€${e.totalEuros.toFixed(2)}`,  inline: true },
+        { name: 'Ativos',  value: `${e.clientesAtivos}`,          inline: true },
+        { name: 'MRR',     value: `€${e.recorrente}/mês`,         inline: true }
+      ).setColor('#57f287')], ephemeral: true });
+    }
+    if (sub === 'listar') {
+      const chaves = await listarChaves();
+      return interaction.reply({ content: chaves.map(k => `\`${k.chave}\` **${k.tier}** ${k.usada ? '✅' : '⏳'}`).join('\n') || '—', ephemeral: true });
+    }
+    if (sub === 'revogar') {
+      const c = interaction.options.getString('chave');
+      const ok = await revogarChave(c);
+      return interaction.reply({ content: ok ? '✅ Revogada' : '❌ Não encontrada', ephemeral: true });
+    }
+  }
+
+  if (commandName === 'erro') {
+    const denied = guardOwnerHome(interaction);
+    if (denied) return denied;
+    const sub = interaction.options.getSubcommand();
+
+    if (sub === 'ver') {
+      const id = interaction.options.getString('id').toUpperCase();
+      const e = obterErro(id);
+      if (!e) {
+        return interaction.reply({ content: `❌ Erro \`${id}\` não encontrado (cache só guarda os últimos 200 — reinícios limpam).`, ephemeral: true });
+      }
+      const stackCurto = (e.stack || '').split('\n').slice(0, 8).join('\n').slice(0, 1800);
+      const embed = new EmbedBuilder()
+        .setTitle(`🚨 Erro ${e.id}`)
+        .setDescription('```\n' + (e.message || '').slice(0, 400) + '\n```')
+        .addFields(
+          { name: 'Quando',  value: `<t:${Math.floor(e.ts.getTime()/1000)}:R>`, inline: true },
+          { name: 'Código',  value: e.code ? `\`${e.code}\`` : '—',             inline: true },
+          { name: 'Guild',   value: e.ctx.guildName ? `${e.ctx.guildName}\n\`${e.ctx.guildId}\`` : '—', inline: false },
+          { name: 'User',    value: e.ctx.userTag ? `${e.ctx.userTag}\n\`${e.ctx.user}\`` : '—', inline: false },
+          { name: 'Comando', value: e.ctx.command || e.ctx.customId || '—',     inline: false },
+          { name: 'Stack',   value: '```\n' + stackCurto + '\n```',              inline: false }
+        )
+        .setColor('#ed4245')
+        .setFooter({ text: 'Pratic Bot • error tracker' })
+        .setTimestamp(e.ts);
+      return interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+
+    if (sub === 'recentes') {
+      const lista = listarRecentes(10);
+      if (!lista.length) return interaction.reply({ content: '✅ Nenhum erro registado.', ephemeral: true });
+      const txt = lista.map(e => `\`${e.id}\` <t:${Math.floor(e.ts.getTime()/1000)}:R> — ${e.message.slice(0, 80)}`).join('\n');
+      return interaction.reply({ content: txt, ephemeral: true });
+    }
+  }
+
+  // ============================================================
+  // 🌍 GLOBAL: /painel (qualquer servidor, admin do servidor)
+  // ============================================================
   if (commandName === 'painel') {
     const sub = interaction.options.getSubcommand();
 
@@ -219,8 +308,6 @@ async function handleCommand(interaction, client) {
       if (!panel || !panel.options.length) {
         return interaction.reply({ content: '❌ Painel não tem opções.', ephemeral: true });
       }
-
-      // Dedupe
       const unique = [];
       const seen = new Set();
       for (const o of panel.options) {
@@ -230,20 +317,16 @@ async function handleCommand(interaction, client) {
         unique.push({ label: o.label.slice(0, 100), value: v });
         if (unique.length >= 10) break;
       }
-
       const embed = new EmbedBuilder()
         .setTitle(panel.title)
         .setDescription(panel.descricao)
         .setTimestamp();
-
       aplicarBranding(embed, config, { color: panel.color || '#5865f2' });
       if (limits.watermark) embed.setFooter({ text: 'Pratic Bot' });
-
       const select = new StringSelectMenuBuilder()
         .setCustomId(`panel_${panel.id}`)
         .setPlaceholder(t(locale, 'panel.placeholder'))
         .addOptions(unique);
-
       await canal.send({ embeds: [embed], components: [new ActionRowBuilder().addComponents(select)] });
       return interaction.reply({ content: t(locale, 'panel.sent', { channel: `<#${canal.id}>` }), ephemeral: true });
     }
@@ -253,93 +336,6 @@ async function handleCommand(interaction, client) {
       config.panels = config.panels.filter(p => p.id !== pid);
       await updateGuildConfig(interaction.guildId, { panels: config.panels });
       return interaction.reply({ content: t(locale, 'panel.deleted'), ephemeral: true });
-    }
-  }
-
-  // ---- /gerar-chave (só o dono do bot) ----
-  if (commandName === 'gerar-chave') {
-    if (interaction.user.id !== process.env.ADMIN_KEY) return interaction.reply({ content: t(locale, 'common.ownerOnly'), ephemeral: true });
-    const tier = interaction.options.getString('tier');
-    const dias = interaction.options.getInteger('dias') || 30;
-    const chave = await criarChave(tier, dias);
-    return interaction.reply({ content: `\`\`\`${chave}\`\`\``, ephemeral: true });
-  }
-
-  // ---- /admin-chaves (só o dono do bot) ----
-  if (commandName === 'admin-chaves') {
-    if (interaction.user.id !== process.env.ADMIN_KEY) return interaction.reply({ content: '❌', ephemeral: true });
-    const sub = interaction.options.getSubcommand();
-
-    if (sub === 'stats') {
-      const e = await estatisticasVendas();
-      return interaction.reply({ embeds: [new EmbedBuilder().setTitle('📊').addFields(
-        { name: 'Vendas', value: `${e.totalVendas}`, inline: true },
-        { name: 'Receita', value: `€${e.totalEuros.toFixed(2)}`, inline: true },
-        { name: 'Ativos', value: `${e.clientesAtivos}`, inline: true },
-        { name: 'MRR', value: `€${e.recorrente}/mês`, inline: true }
-      ).setColor('#57f287')], ephemeral: true });
-    }
-    if (sub === 'listar') {
-      const chaves = await listarChaves();
-      return interaction.reply({ content: chaves.map(k => `\`${k.chave}\` **${k.tier}** ${k.usada ? '✅' : '⏳'}`).join('\n') || '—', ephemeral: true });
-    }
-    if (sub === 'revogar') {
-      const c = interaction.options.getString('chave');
-      const ok = await revogarChave(c);
-      return interaction.reply({ content: ok ? '✅ Revogada' : '❌ Não encontrada', ephemeral: true });
-    }
-  }
-
-  // ---- /erro (só o dono do bot) ----
-  if (commandName === 'erro') {
-    if (interaction.user.id !== process.env.ADMIN_KEY) {
-      return interaction.reply({ content: '❌ Só o dono do bot.', ephemeral: true });
-    }
-    const sub = interaction.options.getSubcommand();
-
-    if (sub === 'ver') {
-      const id = interaction.options.getString('id').toUpperCase();
-      const e = obterErro(id);
-
-      if (!e) {
-        return interaction.reply({
-          content: `❌ Erro \`${id}\` não encontrado (só guardo os últimos 200 — reinícios limpam o cache).`,
-          ephemeral: true
-        });
-      }
-
-      const stackCurto = (e.stack || '').split('\n').slice(0, 8).join('\n').slice(0, 1800);
-
-      const embed = new EmbedBuilder()
-        .setTitle(`🚨 Erro ${e.id}`)
-        .setDescription('```\n' + (e.message || '').slice(0, 400) + '\n```')
-        .addFields(
-          { name: 'Quando',  value: `<t:${Math.floor(e.ts.getTime()/1000)}:R>`, inline: true },
-          { name: 'Código',  value: e.code ? `\`${e.code}\`` : '—',             inline: true },
-          { name: 'Guild',   value: e.ctx.guildName ? `${e.ctx.guildName}\n\`${e.ctx.guildId}\`` : '—', inline: false },
-          { name: 'User',    value: e.ctx.userTag ? `${e.ctx.userTag}\n\`${e.ctx.user}\`` : '—', inline: false },
-          { name: 'Comando', value: e.ctx.command || e.ctx.customId || '—',     inline: false },
-          { name: 'Stack',   value: '```\n' + stackCurto + '\n```',              inline: false }
-        )
-        .setColor('#ed4245')
-        .setFooter({ text: 'Pratic Bot • error tracker' })
-        .setTimestamp(e.ts);
-
-      return interaction.reply({ embeds: [embed], ephemeral: true });
-    }
-
-    if (sub === 'recentes') {
-      const lista = listarRecentes(10);
-
-      if (!lista.length) {
-        return interaction.reply({ content: '✅ Nenhum erro registado.', ephemeral: true });
-      }
-
-      const txt = lista.map(e =>
-        `\`${e.id}\` <t:${Math.floor(e.ts.getTime()/1000)}:R> — ${e.message.slice(0, 80)}`
-      ).join('\n');
-
-      return interaction.reply({ content: txt, ephemeral: true });
     }
   }
 }
