@@ -25,10 +25,10 @@ export function iniciarVerificacaoExpiracao(client) {
 
 export async function enviarPosVenda(interaction, tier, expiraEm) {
   const planos = {
-    basico:  { nome: 'Básico',  preco: '€5',  features: ['3 painéis','5 opções','5 botões','70 msgs','Sem marca'] },
-    pro:     { nome: 'Pro',     preco: '€10', features: ['10 painéis','10 opções','10 botões','150 msgs','Avaliações','Auto-fecho'] },
-    premium: { nome: 'Premium', preco: '€20', features: ['Ilimitado','10 opções','10 botões','∞ msgs','White-label'] }
-  };
+  basico:  { nome: 'Básico',  preco: '€5',  features: ['15 painéis','5 opções','5 botões','90 msgs','Sem marca'] },
+  pro:     { nome: 'Pro',     preco: '€10', features: ['20 painéis','10 opções','10 botões','200 msgs','Avaliações','Auto-fecho','🎨 Branding'] },
+  premium: { nome: 'Premium', preco: '€15', features: ['Ilimitado','10 opções','10 botões','∞ msgs','White-label','🎨 Branding total'] }
+};
   const p = planos[tier];
   if (!p) return;
 
