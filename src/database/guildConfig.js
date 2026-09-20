@@ -16,6 +16,15 @@ function defaultConfig(guildId) {
     panels: [],
     tickets: {},
     autoCloseHours: 48,
+    // 🎨 NOVO: identidade visual por servidor (Pro / Premium)
+    branding: {
+      botName: null,      // ex: "🎫 Suporte Alpha"
+      avatarUrl: null,    // ícone que aparece no autor do embed
+      bannerUrl: null,    // imagem grande (setImage)
+      description: null,  // texto curto que aparece em DMs
+      color: '#5865f2',   // cor dos embeds
+      status: null        // texto de presença sugerido (rotação)
+    },
     createdAt: new Date()
   };
 }
@@ -29,6 +38,10 @@ export async function getGuildConfig(guildId) {
   if (!config) {
     config = defaultConfig(guildId);
     await col.insertOne(config);
+  } else if (!config.branding) {
+    // migração automática de guilds antigas
+    config.branding = defaultConfig(guildId).branding;
+    await col.updateOne({ guildId }, { $set: { branding: config.branding } });
   }
 
   if (config.premiumUntil && new Date(config.premiumUntil) < new Date()) {
@@ -48,11 +61,14 @@ export async function updateGuildConfig(guildId, updates) {
   return getGuildConfig(guildId);
 }
 
+// ============================================================
+// 🎯 PLANOS — tabela única, tudo lê daqui
+// ============================================================
 export const TIERS = {
-  free:    { nome: 'Free',    maxPanels: 1,   maxOptions: 5,  maxButtons: 3,  maxMsgs: 30,       watermark: true,  rating: false, autoClose: false },
-  basico:  { nome: 'Básico',  maxPanels: 3,   maxOptions: 5,  maxButtons: 5,  maxMsgs: 70,       watermark: false, rating: false, autoClose: false },
-  pro:     { nome: 'Pro',     maxPanels: 10,  maxOptions: 10, maxButtons: 10, maxMsgs: 150,      watermark: false, rating: true,  autoClose: true  },
-  premium: { nome: 'Premium', maxPanels: 999, maxOptions: 10, maxButtons: 10, maxMsgs: Infinity, watermark: false, rating: true,  autoClose: true  }
+  free:    { nome: 'Free',    preco: 0,  maxPanels: 6,   maxOptions: 3,  maxButtons: 3,  maxMsgs: 70,       watermark: true,  rating: false, autoClose: false, branding: false },
+  basico:  { nome: 'Básico',  preco: 5,  maxPanels: 15,  maxOptions: 5,  maxButtons: 5,  maxMsgs: 90,       watermark: false, rating: false, autoClose: false, branding: false },
+  pro:     { nome: 'Pro',     preco: 10, maxPanels: 20,  maxOptions: 10, maxButtons: 10, maxMsgs: 200,      watermark: false, rating: true,  autoClose: true,  branding: true },
+  premium: { nome: 'Premium', preco: 15, maxPanels: 999, maxOptions: 10, maxButtons: 10, maxMsgs: Infinity, watermark: false, rating: true,  autoClose: true,  branding: true }
 };
 
 export function getLimits(tier) {
