@@ -604,38 +604,29 @@ export async function handleSetupInteraction(interaction) {
   }));
   if (customId === 'setup_auto')         return autoCriarCanais(interaction);
 
-  // ---- SELECTS ----
-  if (customId === 'setup_select_logs') {
-    const id = interaction.values[0];
-    await updateGuildConfig(interaction.guildId, { logsChannelId: id });
-    await interaction.followUp({ content: `${EMOJI.success} Logs: <#${id}>`, ephemeral: true });
-    return renderHome(interaction);
-  }
-  if (customId === 'setup_select_transcripts') {
-    const id = interaction.values[0];
-    await updateGuildConfig(interaction.guildId, { transcriptChannelId: id });
-    await interaction.followUp({ content: `${EMOJI.success} Transcripts: <#${id}>`, ephemeral: true });
-    return renderHome(interaction);
-  }
-  if (customId === 'setup_select_categoria') {
-    const id = interaction.values[0];
-    await updateGuildConfig(interaction.guildId, { categoryId: id });
-    await interaction.followUp({ content: `${EMOJI.success} Categoria: <#${id}>`, ephemeral: true });
-    return renderHome(interaction);
-  }
-  if (customId === 'setup_select_staff') {
-    const ids = interaction.values; // já vem com default + alterações
-    await updateGuildConfig(interaction.guildId, { staffRoles: ids });
-    await interaction.followUp({
-      content: ids.length ? `${EMOJI.success} Staff atualizado: ${ids.map(r => `<@&${r}>`).join(', ')}` : `${EMOJI.success} Staff limpo.`,
-      ephemeral: true
-    });
-    return renderStaff(interaction); // re-renderiza com os novos defaults
-  }
-  if (customId === 'setup_select_idioma') {
-    const loc = interaction.values[0];
-    await updateGuildConfig(interaction.guildId, { locale: loc });
-    await interaction.followUp({ content: `${EMOJI.success} Idioma: \`${loc}\``, ephemeral: true });
-    return renderHome(interaction);
-  }
+// ---- SELECTS ----
+if (customId === 'setup_select_logs') {
+  const id = interaction.values[0];
+  await updateGuildConfig(interaction.guildId, { logsChannelId: id });
+  return renderHome(interaction);
+}
+if (customId === 'setup_select_transcripts') {
+  const id = interaction.values[0];
+  await updateGuildConfig(interaction.guildId, { transcriptChannelId: id });
+  return renderHome(interaction);
+}
+if (customId === 'setup_select_categoria') {
+  const id = interaction.values[0];
+  await updateGuildConfig(interaction.guildId, { categoryId: id });
+  return renderHome(interaction);
+}
+if (customId === 'setup_select_staff') {
+  const ids = interaction.values;
+  await updateGuildConfig(interaction.guildId, { staffRoles: ids });
+  return renderStaff(interaction); // volta a mostrar o menu, agora com os defaults novos
+}
+if (customId === 'setup_select_idioma') {
+  const loc = interaction.values[0];
+  await updateGuildConfig(interaction.guildId, { locale: loc });
+  return renderHome(interaction);
 }
