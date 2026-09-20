@@ -8,16 +8,20 @@ import { handleGuildCreate } from './src/events/guildCreate.js';
 import { gerarErrorId, registarErro } from './src/utils/errorTracker.js';
 
 // ============================================================
-// COMANDOS
+// 🎯 IDs FIXOS
 // ============================================================
-const cmds = [
-  // 🎯 COMANDO PRINCIPAL
+export const OWNER_ID  = '996454465555136675';       // o teu ID (dono)
+export const HOME_GUILD = '1550930566054936787';     // servidor onde aparecem os comandos de admin
+
+// ============================================================
+// 🌍 COMANDOS GLOBAIS (todos os servidores)
+// ============================================================
+const cmdsGlobal = [
   new SlashCommandBuilder()
     .setName('pratic')
     .setDescription('🎫 Abre o painel de controlo do bot')
     .toJSON(),
 
-  // 🎫 Painéis
   new SlashCommandBuilder().setName('painel').setDescription('Gerir painéis de tickets')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand(s => s.setName('criar').setDescription('Criar painel')
@@ -35,9 +39,13 @@ const cmds = [
       .addChannelOption(o => o.setName('canal').setDescription('Canal').setRequired(true)))
     .addSubcommand(s => s.setName('apagar').setDescription('Apagar painel')
       .addStringOption(o => o.setName('painel_id').setDescription('ID').setRequired(true)))
-    .toJSON(),
+    .toJSON()
+];
 
-  // 🔑 Dono
+// ============================================================
+// 🏠 COMANDOS SÓ NO SERVIDOR HOME (staff)
+// ============================================================
+const cmdsHome = [
   new SlashCommandBuilder().setName('gerar-chave').setDescription('🔑 Gerar chave (dono)')
     .addStringOption(o => o.setName('tier').setDescription('Tier').setRequired(true)
       .addChoices(
@@ -49,23 +57,19 @@ const cmds = [
     .toJSON(),
 
   new SlashCommandBuilder().setName('admin-chaves').setDescription('🔑 Admin chaves (dono)')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand(s => s.setName('stats').setDescription('Estatísticas'))
     .addSubcommand(s => s.setName('listar').setDescription('Listar'))
     .addSubcommand(s => s.setName('revogar').setDescription('Revogar')
       .addStringOption(o => o.setName('chave').setDescription('Chave').setRequired(true)))
     .toJSON(),
 
-  // 🔍 Erros
   new SlashCommandBuilder().setName('erro').setDescription('🔍 Consultar erros (dono)')
     .addSubcommand(s => s.setName('ver').setDescription('Ver detalhes de um erro')
       .addStringOption(o => o.setName('id').setDescription('Código (ex: ERR-A3F9K)').setRequired(true)))
     .addSubcommand(s => s.setName('recentes').setDescription('Últimos 10 erros'))
     .toJSON(),
 
-  // 🛠️ Utilitário
-  new SlashCommandBuilder().setName('criar-cargos').setDescription('🛠️ Aplicar permissões aos cargos')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+  new SlashCommandBuilder().setName('criar-cargos').setDescription('🛠️ Aplicar permissões aos cargos (dono)')
     .toJSON()
 ];
 
@@ -89,8 +93,18 @@ client.once('clientReady', async () => {
   try {
     console.log('🔄 A registar comandos slash...');
     const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
-    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: cmds });
-    console.log(`✅ ${cmds.length} comandos registados!`);
+
+    // 🌍 Globais
+    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: cmdsGlobal });
+    console.log(`✅ ${cmdsGlobal.length} comandos GLOBAIS registados (todos os servidores)`);
+
+    // 🏠 Home (guild específica)
+    await rest.put(
+      Routes.applicationGuildCommands(process.env.CLIENT_ID, HOME_GUILD),
+      { body: cmdsHome }
+    );
+    console.log(`✅ ${cmdsHome.length} comandos HOME registados (só em ${HOME_GUILD})`);
+
   } catch (e) {
     console.error('❌ Erro ao registar comandos:', e.message);
   }
