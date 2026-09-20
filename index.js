@@ -10,72 +10,53 @@ import { handleGuildCreate } from './src/events/guildCreate.js';
 // COMANDOS
 // ============================================================
 const cmds = [
-  new SlashCommandBuilder().setName('setup').setDescription('Setup Pratic Bot').toJSON(),
-
-  new SlashCommandBuilder().setName('config').setDescription('Configurar')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .addSubcommand(s => s.setName('ver').setDescription('Ver'))
-    .addSubcommand(s => s.setName('logs').setDescription('Logs').addChannelOption(o => o.setName('canal').setDescription('Canal').setRequired(true)))
-    .addSubcommand(s => s.setName('transcripts').setDescription('Transcripts').addChannelOption(o => o.setName('canal').setDescription('Canal').setRequired(true)))
-    .addSubcommand(s => s.setName('staff').setDescription('Staff').addRoleOption(o => o.setName('cargo').setDescription('Cargo').setRequired(true)))
-    .addSubcommand(s => s.setName('categoria').setDescription('Categoria').addChannelOption(o => o.setName('categoria').setDescription('Cat').setRequired(true)))
-    .addSubcommand(s => s.setName('idioma').setDescription('Idioma').addStringOption(o => o.setName('locale').setDescription('Locale').setRequired(true)
-      .addChoices({ name: 'Português (PT)', value: 'pt-PT' }, { name: 'Português (BR)', value: 'pt-BR' }, { name: 'Español', value: 'es-ES' }, { name: 'Русский', value: 'ru' }, { name: 'English', value: 'en' })))
+  // 🎯 COMANDO PRINCIPAL — abre o painel de controlo
+  new SlashCommandBuilder()
+    .setName('pratic')
+    .setDescription('🎫 Abre o painel de controlo do bot')
     .toJSON(),
 
-  new SlashCommandBuilder().setName('painel').setDescription('Painéis')
+  // 🎫 Gerir painéis (ainda necessário para adicionar opções)
+  new SlashCommandBuilder().setName('painel').setDescription('Gerir painéis de tickets')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .addSubcommand(s => s.setName('criar').setDescription('Criar')
+    .addSubcommand(s => s.setName('criar').setDescription('Criar painel')
       .addStringOption(o => o.setName('nome').setDescription('Nome').setRequired(true))
       .addStringOption(o => o.setName('titulo').setDescription('Título').setRequired(true))
-      .addStringOption(o => o.setName('descricao').setDescription('Desc').setRequired(true))
-      .addStringOption(o => o.setName('imagem').setDescription('URL de imagem (opcional)').setRequired(false)))
-    .addSubcommand(s => s.setName('opcao').setDescription('Opção')
-      .addStringOption(o => o.setName('painel_id').setDescription('ID').setRequired(true))
+      .addStringOption(o => o.setName('descricao').setDescription('Descrição').setRequired(true)))
+    .addSubcommand(s => s.setName('opcao').setDescription('Adicionar opção')
+      .addStringOption(o => o.setName('painel_id').setDescription('ID do painel').setRequired(true))
       .addStringOption(o => o.setName('label').setDescription('Label').setRequired(true))
-      .addStringOption(o => o.setName('value').setDescription('Value').setRequired(true)))
-    .addSubcommand(s => s.setName('listar').setDescription('Listar'))
-    .addSubcommand(s => s.setName('enviar').setDescription('Enviar')
-      .addStringOption(o => o.setName('painel_id').setDescription('ID').setRequired(true))
+      .addStringOption(o => o.setName('value').setDescription('Valor').setRequired(true)))
+    .addSubcommand(s => s.setName('listar').setDescription('Listar painéis'))
+    .addSubcommand(s => s.setName('enviar').setDescription('Enviar painel')
+      .addStringOption(o => o.setName('painel_id').setDescription('ID do painel').setRequired(true))
       .addChannelOption(o => o.setName('canal').setDescription('Canal').setRequired(true)))
-    .addSubcommand(s => s.setName('apagar').setDescription('Apagar')
+    .addSubcommand(s => s.setName('apagar').setDescription('Apagar painel')
       .addStringOption(o => o.setName('painel_id').setDescription('ID').setRequired(true)))
     .toJSON(),
 
-  new SlashCommandBuilder().setName('premium').setDescription('⭐ Ativar plano')
-    .addStringOption(o => o.setName('chave').setDescription('Chave').setRequired(true)).toJSON(),
-
-  new SlashCommandBuilder().setName('gerar-chave').setDescription('🔑 Gerar chave')
+  // 🔑 Só para ti (dono do bot)
+  new SlashCommandBuilder().setName('gerar-chave').setDescription('🔑 Gerar chave (dono)')
     .addStringOption(o => o.setName('tier').setDescription('Tier').setRequired(true)
-      .addChoices({ name: 'Básico', value: 'basico' }, { name: 'Pro', value: 'pro' }, { name: 'Premium', value: 'premium' }))
+      .addChoices(
+        { name: 'Básico', value: 'basico' },
+        { name: 'Pro', value: 'pro' },
+        { name: 'Premium', value: 'premium' }
+      ))
     .addIntegerOption(o => o.setName('dias').setDescription('Dias').setMinValue(1).setMaxValue(365))
     .toJSON(),
 
-  new SlashCommandBuilder().setName('admin-chaves').setDescription('🔑 Admin')
+  new SlashCommandBuilder().setName('admin-chaves').setDescription('🔑 Admin chaves (dono)')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .addSubcommand(s => s.setName('stats').setDescription('Stats'))
+    .addSubcommand(s => s.setName('stats').setDescription('Estatísticas'))
     .addSubcommand(s => s.setName('listar').setDescription('Listar'))
-    .addSubcommand(s => s.setName('revogar').setDescription('Revogar').addStringOption(o => o.setName('chave').setDescription('Chave').setRequired(true)))
+    .addSubcommand(s => s.setName('revogar').setDescription('Revogar')
+      .addStringOption(o => o.setName('chave').setDescription('Chave').setRequired(true)))
     .toJSON(),
 
-  new SlashCommandBuilder().setName('criar-cargos').setDescription('🛠️ Aplica as permissões aos cargos existentes (admin)')
+  // 🛠️ Utilitário (só admin)
+  new SlashCommandBuilder().setName('criar-cargos').setDescription('🛠️ Aplicar permissões aos cargos')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .toJSON(),
-
-  new SlashCommandBuilder().setName('suporte').setDescription('🆘 Servidor de suporte do Pratic Bot').toJSON(),
-
-  new SlashCommandBuilder().setName('responder').setDescription('📝 Enviar resposta rápida (snippet)')
-    .addStringOption(o => o.setName('nome').setDescription('Nome do snippet').setRequired(true))
-    .toJSON(),
-
-  new SlashCommandBuilder().setName('snippet').setDescription('⚙️ Gerir snippets')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .addSubcommand(s => s.setName('criar').setDescription('Criar')
-      .addStringOption(o => o.setName('nome').setDescription('Nome').setRequired(true))
-      .addStringOption(o => o.setName('texto').setDescription('Conteúdo').setRequired(true)))
-    .addSubcommand(s => s.setName('listar').setDescription('Listar'))
-    .addSubcommand(s => s.setName('apagar').setDescription('Apagar')
-      .addStringOption(o => o.setName('nome').setDescription('Nome').setRequired(true)))
     .toJSON()
 ];
 
