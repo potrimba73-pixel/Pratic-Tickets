@@ -45,3 +45,44 @@ export async function enviarPosVenda(interaction, tier, expiraEm) {
   try { await interaction.user.send({ embeds: [embed] }); }
   catch { await interaction.followUp({ embeds: [embed], ephemeral: true }).catch(() => {}); }
 }
+// no fim do keysManager.js, adiciona:
+import { resgatarChave, registarVenda } from '../database/keys.js';
+import { getGuildConfig, updateGuildConfig, getLimits } from '../database/guildConfig.js';
+import { BRAND, EMOJI, footer } from '../ui/theme.js';
+import { aplicarBranding } from './branding.js';
+
+export async function processarChaveModal(interaction) {
+  const chave = interaction.fields.getTextInputValue('chave').trim();
+  const res = await resgatarChave(chave, interaction.guildId, interaction.user.id);
+
+  if (!res.ok) {
+    return interaction.reply({
+      content: `${EMOJI.error} ${res.error === 'invalid' ? 'Chave inválida.' : 'Chave já usada.'}`,
+      ephemeral: true
+    });
+  }
+
+  await updateGuildConfig(interaction.guildId, { tier: res.tier, premiumUntil: res.expiraEm });
+  const valor = { basico: 5, pro: 10, premium: 15 }[res.tier] || 0;
+  await registarVenda({
+    chave: chave.toUpperCase(), tier: res.tier,
+    guildId: interaction.guildId, guildNome: interaction.guild.name,
+    userId: interaction.user.id, valor
+  });
+
+  const lim = getLimits(res.tier);
+  const embed = new EmbedBuilder()
+    .setTitle(`${EMOJI.premium} Plano ${lim.nome} ativado!`)
+    .setDescription(
+      `**€${lim.preco}/mês** · expira <t:${Math.floor(res.expiraEm.getTime()/1000)}:R>\n\n` +
+      `**Novidades desbloqueadas:**\n` +
+      `> ${EMOJI.panel} Painéis: **${lim.maxPanels === 999 ? '∞' : lim.maxPanels}**\n` +
+      `> ${EMOJI.transcripts} Msgs/transcript: **${lim.maxMsgs === Infinity ? '∞' : lim.maxMsgs}**\n` +
+      (lim.rating ? `> ${EMOJI.star} Avaliações ativas\n` : '') +
+      (lim.autoClose ? `> ${EMOJI.clock} Auto-fecho ativo\n` : '') +
+      (lim.branding ? `> 🎨 **Branding personalizado** — vai a 🎨 no painel\n` : '')
+    )
+    .setColor(BRAND.success).setFooter(footer()).setTimestamp();
+
+  await interaction.reply({ embeds: [embed], ephemeral: true });
+}
