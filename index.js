@@ -5,24 +5,26 @@ import { connectDB } from './src/database/mongo.js';
 import { handleInteraction } from './src/events/interactionCreate.js';
 import { handleReady } from './src/events/ready.js';
 import { handleGuildCreate } from './src/events/guildCreate.js';
+import { gerarErrorId, registarErro } from './src/utils/errorTracker.js';
 
 // ============================================================
 // COMANDOS
 // ============================================================
 const cmds = [
-  // 🎯 COMANDO PRINCIPAL — abre o painel de controlo
+  // 🎯 COMANDO PRINCIPAL
   new SlashCommandBuilder()
     .setName('pratic')
     .setDescription('🎫 Abre o painel de controlo do bot')
     .toJSON(),
 
-  // 🎫 Gerir painéis (ainda necessário para adicionar opções)
+  // 🎫 Painéis
   new SlashCommandBuilder().setName('painel').setDescription('Gerir painéis de tickets')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand(s => s.setName('criar').setDescription('Criar painel')
       .addStringOption(o => o.setName('nome').setDescription('Nome').setRequired(true))
       .addStringOption(o => o.setName('titulo').setDescription('Título').setRequired(true))
-      .addStringOption(o => o.setName('descricao').setDescription('Descrição').setRequired(true)))
+      .addStringOption(o => o.setName('descricao').setDescription('Descrição').setRequired(true))
+      .addStringOption(o => o.setName('cor').setDescription('Cor hex (ex: #5865f2)').setRequired(false)))
     .addSubcommand(s => s.setName('opcao').setDescription('Adicionar opção')
       .addStringOption(o => o.setName('painel_id').setDescription('ID do painel').setRequired(true))
       .addStringOption(o => o.setName('label').setDescription('Label').setRequired(true))
@@ -35,7 +37,7 @@ const cmds = [
       .addStringOption(o => o.setName('painel_id').setDescription('ID').setRequired(true)))
     .toJSON(),
 
-  // 🔑 Só para ti (dono do bot)
+  // 🔑 Dono
   new SlashCommandBuilder().setName('gerar-chave').setDescription('🔑 Gerar chave (dono)')
     .addStringOption(o => o.setName('tier').setDescription('Tier').setRequired(true)
       .addChoices(
@@ -54,7 +56,14 @@ const cmds = [
       .addStringOption(o => o.setName('chave').setDescription('Chave').setRequired(true)))
     .toJSON(),
 
-  // 🛠️ Utilitário (só admin)
+  // 🔍 Erros
+  new SlashCommandBuilder().setName('erro').setDescription('🔍 Consultar erros (dono)')
+    .addSubcommand(s => s.setName('ver').setDescription('Ver detalhes de um erro')
+      .addStringOption(o => o.setName('id').setDescription('Código (ex: ERR-A3F9K)').setRequired(true)))
+    .addSubcommand(s => s.setName('recentes').setDescription('Últimos 10 erros'))
+    .toJSON(),
+
+  // 🛠️ Utilitário
   new SlashCommandBuilder().setName('criar-cargos').setDescription('🛠️ Aplicar permissões aos cargos')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON()
@@ -122,5 +131,15 @@ server.listen(PORT, () => {
 
 client.login(process.env.TOKEN);
 
-process.on('unhandledRejection', (err) => console.error('[Unhandled]', err));
-process.on('uncaughtException', (err) => console.error('[Uncaught]', err));
+// ============================================================
+// ERROR TRACKING GLOBAL
+// ============================================================
+process.on('unhandledRejection', (err) => {
+  const id = gerarErrorId();
+  registarErro(id, err, { type: 'unhandledRejection' });
+});
+
+process.on('uncaughtException', (err) => {
+  const id = gerarErrorId();
+  registarErro(id, err, { type: 'uncaughtException' });
+});
