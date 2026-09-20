@@ -9,12 +9,12 @@ import { createTicket, claimTicket, closeTicket, handleRating } from '../service
 import { enviarPosVenda } from '../services/keysManager.js';
 import { t } from '../i18n.js';
 import { enviarSetup, handleSetupInteraction } from '../services/setupWizard.js';
+import { aplicarBranding } from '../services/branding.js';
 
 export async function handleInteraction(interaction, client) {
   try {
     // ============================================================
     // 🎯 SETUP WIZARD — apanha TODOS os customIds "setup_*"
-    //    Isto inclui botões, selects e modais do painel novo.
     // ============================================================
     if (interaction.customId?.startsWith('setup_')) {
       return handleSetupInteraction(interaction);
@@ -45,7 +45,7 @@ export async function handleInteraction(interaction, client) {
   } catch (e) {
     console.error(e);
     if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: '❌', ephemeral: true }).catch(() => {});
+      await interaction.reply({ content: '❌ Ocorreu um erro.', ephemeral: true }).catch(() => {});
     }
   }
 }
@@ -138,10 +138,11 @@ async function handleCommand(interaction, client) {
     return criarTodosCargos(interaction);
   }
 
-  // ---- /painel (ainda necessário para adicionar opções) ----
+  // ---- /painel ----
   if (commandName === 'painel') {
     const sub = interaction.options.getSubcommand();
 
+    // CR I AR
     if (sub === 'criar') {
       if (config.panels.length >= limits.maxPanels) {
         return interaction.reply({ content: `❌ Limite de ${limits.maxPanels} painéis.`, ephemeral: true });
@@ -155,6 +156,7 @@ async function handleCommand(interaction, client) {
       return interaction.reply({ content: t(locale, 'panel.created', { id }), ephemeral: true });
     }
 
+    // O P Ç Ã O
     if (sub === 'opcao') {
       const pid = interaction.options.getString('painel_id');
       const label = interaction.options.getString('label');
@@ -164,31 +166,58 @@ async function handleCommand(interaction, client) {
       if (panel.options.length >= limits.maxOptions) {
         return interaction.reply({ content: `❌ Limite de ${limits.maxOptions} opções.`, ephemeral: true });
       }
+      if (panel.options.some(o => o.value === value)) {
+        return interaction.reply({ content: `❌ Já existe uma opção com value \`${value}\`.`, ephemeral: true });
+      }
       panel.options.push({ label, value });
       await updateGuildConfig(interaction.guildId, { panels: config.panels });
       return interaction.reply({ content: t(locale, 'panel.optionAdded', { n: panel.options.length, max: limits.maxOptions }), ephemeral: true });
     }
 
+    // L I S T A R
     if (sub === 'listar') {
       const txt = config.panels.map(p => `**${p.nome}** — \`${p.id}\` — ${p.options.length} opções`).join('\n') || t(locale, 'panel.listEmpty');
       return interaction.reply({ content: txt, ephemeral: true });
     }
 
+    // E N V I A R
     if (sub === 'enviar') {
       const pid = interaction.options.getString('painel_id');
       const canal = interaction.options.getChannel('canal');
       const panel = config.panels.find(p => p.id === pid);
-      if (!panel || !panel.options.length) return interaction.reply({ content: '❌ Painel não tem opções.', ephemeral: true });
+      if (!panel || !panel.options.length) {
+        return interaction.reply({ content: '❌ Painel não tem opções.', ephemeral: true });
+      }
 
-      const embed = new EmbedBuilder().setTitle(panel.title).setDescription(panel.descricao).setColor(panel.color || '#5865f2');
+      // 🧹 Remover valores duplicados (Discord rejeita duplicados)
+      const unique = [];
+      const seen = new Set();
+      for (const o of panel.options) {
+        const v = o.value.slice(0, 100);
+        if (seen.has(v)) continue;
+        seen.add(v);
+        unique.push({ label: o.label.slice(0, 100), value: v });
+        if (unique.length >= 10) break;
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle(panel.title)
+        .setDescription(panel.descricao)
+        .setTimestamp();
+
+      aplicarBranding(embed, config, { color: panel.color || '#5865f2' });
       if (limits.watermark) embed.setFooter({ text: 'Pratic Bot' });
-      const select = new StringSelectMenuBuilder().setCustomId(`panel_${panel.id}`)
+
+      const select = new StringSelectMenuBuilder()
+        .setCustomId(`panel_${panel.id}`)
         .setPlaceholder(t(locale, 'panel.placeholder'))
-        .addOptions(panel.options.slice(0, 10).map(o => ({ label: o.label.slice(0, 100), value: o.value.slice(0, 100) })));
+        .addOptions(unique);
+
       await canal.send({ embeds: [embed], components: [new ActionRowBuilder().addComponents(select)] });
       return interaction.reply({ content: t(locale, 'panel.sent', { channel: `<#${canal.id}>` }), ephemeral: true });
     }
 
+    // A P A G A R
     if (sub === 'apagar') {
       const pid = interaction.options.getString('painel_id');
       config.panels = config.panels.filter(p => p.id !== pid);
@@ -210,6 +239,7 @@ async function handleCommand(interaction, client) {
   if (commandName === 'admin-chaves') {
     if (interaction.user.id !== process.env.ADMIN_KEY) return interaction.reply({ content: '❌', ephemeral: true });
     const sub = interaction.options.getSubcommand();
+
     if (sub === 'stats') {
       const e = await estatisticasVendas();
       return interaction.reply({ embeds: [new EmbedBuilder().setTitle('📊').addFields(
