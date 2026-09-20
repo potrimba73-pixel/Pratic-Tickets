@@ -5,9 +5,9 @@ import {
   RoleSelectMenuBuilder, ChannelType, ModalBuilder,
   TextInputBuilder, TextInputStyle, PermissionFlagsBits
 } from 'discord.js';
-import { getGuildConfig, updateGuildConfig, getLimits, TIERS } from '../database/guildConfig.js';
+import { getGuildConfig, updateGuildConfig, getLimits } from '../database/guildConfig.js';
 import { BRAND, EMOJI, footer } from '../ui/theme.js';
-import { temBranding } from './branding.js';
+import { temBranding, aplicarBranding } from './branding.js';
 
 // ============================================================
 // DASHBOARD PRINCIPAL
@@ -87,9 +87,11 @@ function backRow(label = 'Voltar ao painel') {
     new ButtonBuilder().setCustomId('setup_home').setLabel(label).setEmoji(EMOJI.back).setStyle(ButtonStyle.Secondary)
   );
 }
+
 async function renderHome(interaction) {
   await interaction.update(await buildDashboard(interaction.guildId));
 }
+
 const sec = (title, body, color = BRAND.color) =>
   new EmbedBuilder().setTitle(title).setDescription(body).setColor(color).setFooter(footer());
 
@@ -109,22 +111,20 @@ async function autoCriarCanais(interaction) {
 
   await interaction.deferReply({ ephemeral: true });
 
-  const staffRoles = (await getGuildConfig(guild.id)).staffRoles;
+  const config = await getGuildConfig(guild.id);
+  const staffRoles = config.staffRoles;
 
-  // Permissões: público bloqueado, staff vê
   const overwrites = [
     { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
     ...staffRoles.map(r => ({ id: r, allow: [PermissionFlagsBits.ViewChannel] }))
   ];
 
-  // 1. Categoria
   const cat = await guild.channels.create({
     name: '📩 Tickets',
     type: ChannelType.GuildCategory,
     permissionOverwrites: overwrites
   });
 
-  // 2. Logs
   const logs = await guild.channels.create({
     name: '📝 ticket-logs',
     type: ChannelType.GuildText,
@@ -132,7 +132,6 @@ async function autoCriarCanais(interaction) {
     topic: 'Registo de eventos dos tickets (Pratic Bot)'
   });
 
-  // 3. Transcripts
   const trans = await guild.channels.create({
     name: '📄 ticket-transcripts',
     type: ChannelType.GuildText,
@@ -195,7 +194,7 @@ async function renderCategoria(i) {
 }
 
 // ============================================================
-// 🛡️ STAFF — com valores pré-selecionados (o que pediste!)
+// 🛡️ STAFF — com valores pré-selecionados
 // ============================================================
 async function renderStaff(i) {
   const config = await getGuildConfig(i.guildId);
@@ -203,13 +202,12 @@ async function renderStaff(i) {
   const menu = new RoleSelectMenuBuilder()
     .setCustomId('setup_select_staff')
     .setPlaceholder(`${EMOJI.staff} Escolhe os cargos de staff`)
-    .setMinValues(0)   // 0 para poder limpar tudo
+    .setMinValues(0)
     .setMaxValues(10);
 
-  // ⭐ MOSTRA OS ANTERIORES PRÉ-SELECIONADOS
-if (config.staffRoles.length) {
-  menu.setDefaultRoles(...config.staffRoles.slice(0, 10));
-}
+  if (config.staffRoles.length) {
+    menu.setDefaultRoles(...config.staffRoles.slice(0, 10));
+  }
 
   const atual = config.staffRoles.length
     ? config.staffRoles.map(r => `> <@&${r}>`).join('\n')
@@ -268,7 +266,7 @@ async function renderBranding(i) {
     return i.update({ embeds: [embed], components: [row] });
   }
 
-  const b = config.branding;
+  const b = config.branding || {};
   const embed = sec('🎨 Branding personalizado',
     `**Nome atual:** ${b.botName ? `\`${b.botName}\`` : '`Pratic Bot` (default)'}\n` +
     `**Avatar:** ${b.avatarUrl ? '✅ Definido' : '❌ Não definido'}\n` +
@@ -354,7 +352,6 @@ async function guardarBranding(i) {
 }
 
 async function resetarBranding(i) {
-  const config = await getGuildConfig(i.guildId);
   await updateGuildConfig(i.guildId, {
     branding: { botName: null, avatarUrl: null, bannerUrl: null, description: null, color: '#5865f2', status: null }
   });
@@ -363,7 +360,7 @@ async function resetarBranding(i) {
 }
 
 // ============================================================
-// 💎 MEU PLANO (substitui /meuplano)
+// 💎 MEU PLANO
 // ============================================================
 async function renderPlano(i) {
   const config = await getGuildConfig(i.guildId);
@@ -390,13 +387,13 @@ async function renderPlano(i) {
       { name: '🎨 Branding', value: lim.branding ? '✅' : '❌', inline: true }
     )
     .setColor(lim.branding ? BRAND.purple : BRAND.color)
-    .setFooter(footer('Usa /pratic plano para ativar uma chave'))
+    .setFooter(footer())
     .setTimestamp();
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('setup_ativar_chave').setLabel('Ativar chave').setEmoji('🔑').setStyle(ButtonStyle.Success),
     new ButtonBuilder().setCustomId('setup_planos').setLabel('Ver planos').setEmoji(EMOJI.premium).setStyle(ButtonStyle.Primary),
-    backRow().components[0]
+    new ButtonBuilder().setCustomId('setup_home').setLabel('Voltar').setEmoji(EMOJI.back).setStyle(ButtonStyle.Secondary)
   );
 
   await i.update({ embeds: [embed], components: [row] });
@@ -409,34 +406,18 @@ async function renderPlanos(i) {
       '**Todos incluem:** sistema completo de tickets · multi-idioma · painéis configuráveis · transcripts HTML/TXT.\n\u200b'
     )
     .addFields(
-      {
-        name: `🆓 Free — €0`,
-        value: '`6 painéis` · `3 opções` · `3 botões` · `70 msgs` · com marca',
-        inline: false
-      },
-      {
-        name: `🔵 Básico — €5/mês`,
-        value: '`15 painéis` · `5 opções` · `5 botões` · `90 msgs` · **sem marca**',
-        inline: false
-      },
-      {
-        name: `🟣 Pro — €10/mês`,
-        value: '`20 painéis` · `10 opções` · `10 botões` · `200 msgs` · ⭐ avaliações · ⏰ auto-fecho · 🎨 **branding**',
-        inline: false
-      },
-      {
-        name: `🟡 Premium — €15/mês`,
-        value: '`∞ painéis` · `10 opções` · `10 botões` · `∞ msgs` · ⭐ avaliações · ⏰ auto-fecho · 🎨 **branding total**',
-        inline: false
-      }
+      { name: `🆓 Free — €0`,        value: '`6 painéis` · `3 opções` · `3 botões` · `70 msgs` · com marca', inline: false },
+      { name: `🔵 Básico — €5/mês`,  value: '`15 painéis` · `5 opções` · `5 botões` · `90 msgs` · **sem marca**', inline: false },
+      { name: `🟣 Pro — €10/mês`,    value: '`20 painéis` · `10 opções` · `10 botões` · `200 msgs` · ⭐ avaliações · ⏰ auto-fecho · 🎨 **branding**', inline: false },
+      { name: `🟡 Premium — €15/mês`, value: '`∞ painéis` · `10 opções` · `10 botões` · `∞ msgs` · ⭐ avaliações · ⏰ auto-fecho · 🎨 **branding total**', inline: false }
     )
     .setColor(BRAND.gold)
-    .setFooter(footer('Compra uma chave e usa /pratic plano'))
+    .setFooter(footer())
     .setTimestamp();
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('setup_ativar_chave').setLabel('Ativar chave').setEmoji('🔑').setStyle(ButtonStyle.Success),
-    backRow().components[0]
+    new ButtonBuilder().setCustomId('setup_home').setLabel('Voltar').setEmoji(EMOJI.back).setStyle(ButtonStyle.Secondary)
   );
   await i.update({ embeds: [embed], components: [row] });
 }
@@ -451,7 +432,7 @@ async function abrirModalChave(i) {
 }
 
 // ============================================================
-// PAINÉIS
+// 🗂️ PAINÉIS
 // ============================================================
 async function renderPaineis(i) {
   const config = await getGuildConfig(i.guildId);
@@ -486,7 +467,6 @@ async function renderPaineis(i) {
     }).join('\n\n')
   );
 
-  // 🎛️ Dropdown para escolher painel + enviar
   const select = new StringSelectMenuBuilder()
     .setCustomId('setup_envio_choose')
     .setPlaceholder(`${EMOJI.arrow} Escolhe um painel para enviar`)
@@ -506,7 +486,6 @@ async function renderPaineis(i) {
   await i.update({ embeds: [embed], components: [row1, row2] });
 }
 
-// 🎯 Escolheu painel → mostra select de canal
 async function renderEnvioCanal(i) {
   const panelId = i.values[0];
   const config = await getGuildConfig(i.guildId);
@@ -541,7 +520,6 @@ async function renderEnvioCanal(i) {
   await i.update({ embeds: [embed], components: [row, back] });
 }
 
-// 🎯 Escolheu canal → envia o painel
 async function enviarPainelFinal(i, panelId) {
   const config = await getGuildConfig(i.guildId);
   const limits = getLimits(config.tier);
@@ -578,8 +556,67 @@ async function enviarPainelFinal(i, panelId) {
 
   await i.reply({ content: `${EMOJI.success} Painel **${panel.nome}** enviado para <#${canal.id}>!`, ephemeral: true });
 }
+
 // ============================================================
-// TESTE + AJUDA
+// 🎫 MODAL: CRIAR PAINEL
+// ============================================================
+async function abrirModalPainel(i) {
+  const config = await getGuildConfig(i.guildId);
+  const lim = getLimits(config.tier);
+  if (config.panels.length >= lim.maxPanels) {
+    return i.reply({ content: `${EMOJI.error} Limite de **${lim.maxPanels}** painéis do plano ${lim.nome}.`, ephemeral: true });
+  }
+
+  const modal = new ModalBuilder().setCustomId('setup_modal_panel_create').setTitle(`${EMOJI.panel} Criar Painel`);
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(new TextInputBuilder()
+      .setCustomId('nome').setLabel('Nome interno (ex: Suporte)').setStyle(TextInputStyle.Short)
+      .setRequired(true).setMaxLength(50)),
+    new ActionRowBuilder().addComponents(new TextInputBuilder()
+      .setCustomId('titulo').setLabel('Título do embed').setStyle(TextInputStyle.Short)
+      .setRequired(true).setMaxLength(100)),
+    new ActionRowBuilder().addComponents(new TextInputBuilder()
+      .setCustomId('descricao').setLabel('Descrição do embed').setStyle(TextInputStyle.Paragraph)
+      .setRequired(true).setMaxLength(500))
+  );
+  await i.showModal(modal);
+}
+
+async function guardarPainel(i) {
+  const config = await getGuildConfig(i.guildId);
+  const lim = getLimits(config.tier);
+  if (config.panels.length >= lim.maxPanels) {
+    return i.reply({ content: `${EMOJI.error} Limite atingido.`, ephemeral: true });
+  }
+
+  const nome = i.fields.getTextInputValue('nome').slice(0, 50);
+  const titulo = i.fields.getTextInputValue('titulo').slice(0, 100);
+  const descricao = i.fields.getTextInputValue('descricao').slice(0, 500);
+  const id = `p_${Date.now().toString(36)}`;
+
+  config.panels.push({ id, nome, title: titulo, descricao, color: '#5865f2', options: [] });
+  await updateGuildConfig(i.guildId, { panels: config.panels });
+
+  const embed = new EmbedBuilder()
+    .setTitle(`${EMOJI.sparkle} Painel criado!`)
+    .setDescription(
+      `**${nome}** · ID \`${id}\`\n\n` +
+      `**Próximo passo — adiciona opções:**\n` +
+      '```\n' +
+      `/painel opcao painel_id:${id} label:Suporte value:suporte\n` +
+      '```'
+    )
+    .setColor(BRAND.success).setFooter(footer()).setTimestamp();
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('setup_paineis').setLabel('Ver Painéis').setEmoji(EMOJI.panels).setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('setup_home').setLabel('Voltar').setEmoji(EMOJI.back).setStyle(ButtonStyle.Secondary)
+  );
+  await i.reply({ embeds: [embed], components: [row], ephemeral: true });
+}
+
+// ============================================================
+// 🧪 TESTE + AJUDA
 // ============================================================
 async function renderTeste(i) {
   const c = await getGuildConfig(i.guildId);
@@ -630,19 +667,22 @@ export async function handleSetupInteraction(interaction) {
   if (interaction.isModalSubmit()) {
     if (customId === 'setup_modal_panel_create') return guardarPainel(interaction);
     if (customId === 'setup_modal_brand')        return guardarBranding(interaction);
-    if (customId === 'setup_modal_chave')        return import('./keysManager.js').then(m => m.processarChaveModal(interaction));
+    if (customId === 'setup_modal_chave') {
+      const { processarChaveModal } = await import('./keysManager.js');
+      return processarChaveModal(interaction);
+    }
     return;
   }
 
   // ---- NAVEGAÇÃO ----
-  if (customId === 'setup_home')    return renderHome(interaction);
-  if (customId === 'setup_paineis') return renderPaineis(interaction);
-  if (customId === 'setup_teste')   return renderTeste(interaction);
-  if (customId === 'setup_ajuda')   return renderAjuda(interaction);
-  if (customId === 'setup_plano')   return renderPlano(interaction);
-  if (customId === 'setup_planos')  return renderPlanos(interaction);
-  if (customId === 'setup_branding') return renderBranding(interaction);
-  if (customId === 'setup_brand_edit') return abrirModalBranding(interaction);
+  if (customId === 'setup_home')        return renderHome(interaction);
+  if (customId === 'setup_paineis')     return renderPaineis(interaction);
+  if (customId === 'setup_teste')       return renderTeste(interaction);
+  if (customId === 'setup_ajuda')       return renderAjuda(interaction);
+  if (customId === 'setup_plano')       return renderPlano(interaction);
+  if (customId === 'setup_planos')      return renderPlanos(interaction);
+  if (customId === 'setup_branding')    return renderBranding(interaction);
+  if (customId === 'setup_brand_edit')  return abrirModalBranding(interaction);
   if (customId === 'setup_brand_reset') return resetarBranding(interaction);
   if (customId === 'setup_ativar_chave') return abrirModalChave(interaction);
 
@@ -654,36 +694,37 @@ export async function handleSetupInteraction(interaction) {
   if (customId === 'setup_idioma')      return renderIdioma(interaction);
 
   // ---- AÇÕES ----
-  if (customId === 'setup_painel_novo')  return abrirModalPainel(interaction);
-  if (customId === 'setup_painel_envio') return import('./setupWizard.js').then(() => interaction.reply({
-    content: '📤 Usa `/painel enviar painel_id:xxx canal:#canal` (a enviar painéis será movido para modal na próxima versão).',
-    ephemeral: true
-  }));
-  if (customId === 'setup_auto')         return autoCriarCanais(interaction);
+  if (customId === 'setup_painel_novo') return abrirModalPainel(interaction);
+  if (customId === 'setup_auto')        return autoCriarCanais(interaction);
 
-// ---- SELECTS ----
-if (customId === 'setup_select_logs') {
-  const id = interaction.values[0];
-  await updateGuildConfig(interaction.guildId, { logsChannelId: id });
-  return renderHome(interaction);
-}
-if (customId === 'setup_select_transcripts') {
-  const id = interaction.values[0];
-  await updateGuildConfig(interaction.guildId, { transcriptChannelId: id });
-  return renderHome(interaction);
-}
-if (customId === 'setup_select_categoria') {
-  const id = interaction.values[0];
-  await updateGuildConfig(interaction.guildId, { categoryId: id });
-  return renderHome(interaction);
-}
-if (customId === 'setup_select_staff') {
-  const ids = interaction.values;
-  await updateGuildConfig(interaction.guildId, { staffRoles: ids });
-  return renderStaff(interaction); // volta a mostrar o menu, agora com os defaults novos
-}
-if (customId === 'setup_select_idioma') {
-  const loc = interaction.values[0];
-  await updateGuildConfig(interaction.guildId, { locale: loc });
-  return renderHome(interaction);
+  // ---- SELECTS ----
+  if (customId === 'setup_select_logs') {
+    const id = interaction.values[0];
+    await updateGuildConfig(interaction.guildId, { logsChannelId: id });
+    return renderHome(interaction);
+  }
+  if (customId === 'setup_select_transcripts') {
+    const id = interaction.values[0];
+    await updateGuildConfig(interaction.guildId, { transcriptChannelId: id });
+    return renderHome(interaction);
+  }
+  if (customId === 'setup_select_categoria') {
+    const id = interaction.values[0];
+    await updateGuildConfig(interaction.guildId, { categoryId: id });
+    return renderHome(interaction);
+  }
+  if (customId === 'setup_select_staff') {
+    const ids = interaction.values;
+    await updateGuildConfig(interaction.guildId, { staffRoles: ids });
+    return renderStaff(interaction);
+  }
+  if (customId === 'setup_select_idioma') {
+    const loc = interaction.values[0];
+    await updateGuildConfig(interaction.guildId, { locale: loc });
+    return renderHome(interaction);
+  }
+  if (customId === 'setup_envio_choose') return renderEnvioCanal(interaction);
+  if (customId.startsWith('setup_envio_channel_')) {
+    return enviarPainelFinal(interaction, customId.replace('setup_envio_channel_', ''));
+  }
 }
