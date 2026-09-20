@@ -207,9 +207,9 @@ async function renderStaff(i) {
     .setMaxValues(10);
 
   // ⭐ MOSTRA OS ANTERIORES PRÉ-SELECIONADOS
-  if (config.staffRoles.length) {
-    menu.setDefaultValues(...config.staffRoles.slice(0, 10));
-  }
+if (config.staffRoles.length) {
+  menu.setDefaultRoles(...config.staffRoles.slice(0, 10));
+}
 
   const atual = config.staffRoles.length
     ? config.staffRoles.map(r => `> <@&${r}>`).join('\n')
