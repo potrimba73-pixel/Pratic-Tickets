@@ -184,11 +184,19 @@ client.login(process.env.TOKEN);
 // 🚨 ERROR TRACKING GLOBAL
 // ============================================================
 process.on('unhandledRejection', (err) => {
+  if (err?.code === 10062 || err?.code === 40060) {
+    console.warn(`⚠️ [unhandledRejection] ignorado (${err.code})`);
+    return;
+  }
   const id = gerarErrorId();
   registarErro(id, err, { type: 'unhandledRejection' });
 });
 
 process.on('uncaughtException', (err) => {
+  if (err?.code === 10062 || err?.code === 40060) {
+    console.warn(`⚠️ [uncaughtException] ignorado (${err.code})`);
+    return;
+  }
   const id = gerarErrorId();
   registarErro(id, err, { type: 'uncaughtException' });
 });
