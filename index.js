@@ -45,16 +45,16 @@ const cmdsGlobal = [
 // ============================================================
 // 🏠 COMANDOS SÓ NO SERVIDOR HOME (staff)
 // ============================================================
-const cmdsHome = [
-  new SlashCommandBuilder().setName('gerar-chave').setDescription('🔑 Gerar chave (dono)')
-    .addStringOption(o => o.setName('tier').setDescription('Tier').setRequired(true)
-      .addChoices(
-        { name: 'Básico', value: 'basico' },
-        { name: 'Pro', value: 'pro' },
-        { name: 'Premium', value: 'premium' }
-      ))
-    .addIntegerOption(o => o.setName('dias').setDescription('Dias').setMinValue(1).setMaxValue(365))
-    .toJSON(),
+new SlashCommandBuilder().setName('gerar-chave').setDescription('🔑 Gerar chave (dono)')
+  .addStringOption(o => o.setName('tier').setDescription('Tier').setRequired(true)
+    .addChoices(
+      { name: 'Básico', value: 'basico' },
+      { name: 'Pro', value: 'pro' },
+      { name: 'Premium', value: 'premium' },
+      { name: 'Custom', value: 'custom' }
+    ))
+  .addIntegerOption(o => o.setName('dias').setDescription('Dias').setMinValue(1).setMaxValue(365))
+  .toJSON(),
 
   new SlashCommandBuilder().setName('admin-chaves').setDescription('🔑 Admin chaves (dono)')
     .addSubcommand(s => s.setName('stats').setDescription('Estatísticas'))
