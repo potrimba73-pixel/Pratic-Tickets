@@ -37,10 +37,15 @@ const cmds = [
     .addStringOption(o => o.setName('chave').setDescription('Chave').setRequired(true)).toJSON(),
 
   new SlashCommandBuilder().setName('gerar-chave').setDescription('Gerar chave')
-    .addStringOption(o => o.setName('tier').setDescription('Tier').setRequired(true)
-      .addChoices({ name: 'Básico', value: 'basico' }, { name: 'Pro', value: 'pro' }, { name: 'Premium', value: 'premium' }))
-    .addIntegerOption(o => o.setName('dias').setDescription('Dias').setMinValue(1).setMaxValue(365))
-    .toJSON(),
+  .addStringOption(o => o.setName('tier').setDescription('Tier').setRequired(true)
+    .addChoices(
+      { name: 'Básico', value: 'basico' },
+      { name: 'Pro', value: 'pro' },
+      { name: 'Premium', value: 'premium' },
+      { name: 'Custom', value: 'custom' }
+    ))
+  .addIntegerOption(o => o.setName('dias').setDescription('Dias').setMinValue(1).setMaxValue(365))
+  .toJSON(),
 
   new SlashCommandBuilder().setName('admin-chaves').setDescription('Admin')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
