@@ -16,14 +16,13 @@ function defaultConfig(guildId) {
     panels: [],
     tickets: {},
     autoCloseHours: 48,
-    // 🎨 NOVO: identidade visual por servidor (Pro / Premium)
     branding: {
-      botName: null,      // ex: "🎫 Suporte Alpha"
-      avatarUrl: null,    // ícone que aparece no autor do embed
-      bannerUrl: null,    // imagem grande (setImage)
-      description: null,  // texto curto que aparece em DMs
-      color: '#5865f2',   // cor dos embeds
-      status: null        // texto de presença sugerido (rotação)
+      botName: null,
+      avatarUrl: null,
+      bannerUrl: null,
+      description: null,
+      color: '#5865f2',
+      status: null
     },
     createdAt: new Date()
   };
@@ -39,7 +38,6 @@ export async function getGuildConfig(guildId) {
     config = defaultConfig(guildId);
     await col.insertOne(config);
   } else if (!config.branding) {
-    // migração automática de guilds antigas
     config.branding = defaultConfig(guildId).branding;
     await col.updateOne({ guildId }, { $set: { branding: config.branding } });
   }
@@ -62,13 +60,51 @@ export async function updateGuildConfig(guildId, updates) {
 }
 
 // ============================================================
-// 🎯 PLANOS — tabela única, tudo lê daqui
+// 🎯 PLANOS — €0 / €5 / €12 / €15 / €20
 // ============================================================
 export const TIERS = {
-  free:    { nome: 'Free',    preco: 0,  maxPanels: 6,   maxOptions: 3,  maxButtons: 3,  maxMsgs: 70,       watermark: true,  rating: false, autoClose: false, branding: false },
-  basico:  { nome: 'Básico',  preco: 5,  maxPanels: 15,  maxOptions: 5,  maxButtons: 5,  maxMsgs: 90,       watermark: false, rating: false, autoClose: false, branding: false },
-  pro:     { nome: 'Pro',     preco: 10, maxPanels: 20,  maxOptions: 10, maxButtons: 10, maxMsgs: 200,      watermark: false, rating: true,  autoClose: true,  branding: true },
-  premium: { nome: 'Premium', preco: 15, maxPanels: 999, maxOptions: 10, maxButtons: 10, maxMsgs: Infinity, watermark: false, rating: true,  autoClose: true,  branding: true }
+  free: {
+    nome: 'Free', preco: 0,
+    maxPanels: 8, maxOptions: 4, maxButtons: 4, maxMsgs: 990,
+    watermark: false, rating: true, autoClose: false, branding: false,
+    claim: true, reabrir: true, embeds: true
+  },
+  basico: {
+    nome: 'Básico', preco: 5,
+    maxPanels: 20, maxOptions: 10, maxButtons: 10, maxMsgs: 2990,
+    watermark: false, rating: true, autoClose: false, branding: false,
+    claim: true, forms: true, dmBasica: true, lembretes: true,
+    statsBasicas: true, respostasRapidas: true
+  },
+  pro: {
+    nome: 'Pro', preco: 12,
+    maxPanels: 50, maxOptions: 10, maxButtons: 10, maxMsgs: 9990,
+    watermark: false, rating: true, autoClose: true, branding: true,
+    claim: true, forms: true, formsAvancados: true,
+    dmAuto: true, transfer: true, statsAvancadas: true,
+    rankingStaff: true, horarioSuporte: true, webhooks: true,
+    respostasRapidasAvancadas: true
+  },
+  premium: {
+    nome: 'Premium', preco: 15,
+    maxPanels: 999, maxOptions: 10, maxButtons: 10, maxMsgs: Infinity,
+    watermark: false, rating: true, autoClose: true, branding: true,
+    whiteLabel: true,
+    claim: true, forms: true, formsAvancados: true,
+    dmAuto: true, transfer: true, statsAvancadas: true,
+    rankingStaff: true, horarioSuporte: true, webhooks: true,
+    respostasRapidasAvancadas: true
+  },
+  custom: {
+    nome: 'Custom', preco: 20,
+    maxPanels: 999, maxOptions: 10, maxButtons: 10, maxMsgs: Infinity,
+    watermark: false, rating: true, autoClose: true, branding: true,
+    whiteLabel: true, customBot: true, suportePrioritario: true,
+    claim: true, forms: true, formsAvancados: true,
+    dmAuto: true, transfer: true, statsAvancadas: true,
+    rankingStaff: true, horarioSuporte: true, webhooks: true,
+    respostasRapidasAvancadas: true
+  }
 };
 
 export function getLimits(tier) {
