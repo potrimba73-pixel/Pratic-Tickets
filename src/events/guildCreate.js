@@ -8,7 +8,16 @@ export async function handleGuildCreate(guild) {
     await owner.send({
       embeds: [new EmbedBuilder()
         .setTitle('👋 Pratic Bot adicionado!')
-        .setDescription('Usa `/setup` para configurar.\n\n**Planos:**\n🔵 Básico €5\n🟣 Pro €10\n🟡 Premium €20\n\n**Idiomas:** PT · PT-BR · ES · RU · EN')
+        .setDescription(
+          'Usa `/pratic` para configurar em minutos.\n\n' +
+          '**Planos:**\n' +
+          '🆓 Free — €0\n' +
+          '🔵 Básico — €5/mês\n' +
+          '🟣 Pro — €12/mês\n' +
+          '🟡 Premium — €15/mês\n' +
+          '🛠️ Custom — €20/mês\n\n' +
+          '**Idiomas:** PT-PT · PT-BR · ES · RU · EN'
+        )
         .setColor('#5865f2')]
     }).catch(() => {});
   } catch {}
