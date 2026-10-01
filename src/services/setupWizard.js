@@ -95,9 +95,6 @@ async function renderHome(interaction) {
 const sec = (title, body, color = BRAND.color) =>
   new EmbedBuilder().setTitle(title).setDescription(body).setColor(color).setFooter(footer());
 
-// ============================================================
-// 🪄 AUTO-CRIAR CATEGORIA + CANAIS
-// ============================================================
 async function autoCriarCanais(interaction) {
   const guild = interaction.guild;
   const bot = guild.members.me;
@@ -109,11 +106,70 @@ async function autoCriarCanais(interaction) {
     });
   }
 
-  await interaction.deferReply({ ephemeral: true });
-
   const config = await getGuildConfig(guild.id);
-  const staffRoles = config.staffRoles;
 
+  // 🔍 Verificar o que já existe (e se os canais ainda existem de facto)
+  const existentes = {
+    categoria:  config.categoryId          ? guild.channels.cache.get(config.categoryId)          : null,
+    logs:       config.logsChannelId       ? guild.channels.cache.get(config.logsChannelId)       : null,
+    transcripts:config.transcriptChannelId ? guild.channels.cache.get(config.transcriptChannelId) : null
+  };
+
+  const jaTem = existentes.categoria || existentes.logs || existentes.transcripts;
+
+  // ⚠️ Se já existe algo → perguntar
+  if (jaTem) {
+    const lista =
+      (existentes.categoria   ? `> 📁 Categoria: <#${config.categoryId}>\n` : '') +
+      (existentes.logs        ? `> 📝 Logs: <#${config.logsChannelId}>\n` : '') +
+      (existentes.transcripts ? `> 📄 Transcripts: <#${config.transcriptChannelId}>\n` : '');
+
+    const embed = new EmbedBuilder()
+      .setTitle(`${EMOJI.warning} Já tens estrutura configurada`)
+      .setDescription(
+        `${lista}\n` +
+        `**O que queres fazer?**\n\n` +
+        `> ✅ **Manter** — usa os canais que já existem\n` +
+        `> 🗑️ **Apagar e recriar** — apaga estes e cria novos\n` +
+        `> 🔁 **Criar ao lado** — adiciona uma nova categoria (pode duplicar)`
+      )
+      .setColor(BRAND.warning)
+      .setFooter(footer());
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('setup_auto_reuse').setLabel('Manter').setEmoji('✅').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('setup_auto_recreate').setLabel('Apagar e recriar').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId('setup_auto_force').setLabel('Criar ao lado').setEmoji('🔁').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('setup_home').setLabel('Cancelar').setEmoji(EMOJI.back).setStyle(ButtonStyle.Secondary)
+    );
+
+    return interaction.update({ embeds: [embed], components: [row] });
+  }
+
+  // ✅ Nada existe → criar
+  return criarCanaisAgora(interaction, { apagarAntes: false });
+}
+
+// ============================================================
+// 🪄 CRIAR CANAIS (função interna — evita duplicação)
+// ============================================================
+async function criarCanaisAgora(interaction, { apagarAntes = false } = {}) {
+  const guild = interaction.guild;
+  const config = await getGuildConfig(guild.id);
+
+  if (apagarAntes) {
+    // Apagar canais antigos
+    const antigos = [config.logsChannelId, config.transcriptChannelId, config.categoryId].filter(Boolean);
+    for (const id of antigos) {
+      const ch = guild.channels.cache.get(id);
+      if (ch) await ch.delete().catch(() => {});
+    }
+    await updateGuildConfig(guild.id, {
+      categoryId: null, logsChannelId: null, transcriptChannelId: null
+    });
+  }
+
+  const staffRoles = config.staffRoles;
   const overwrites = [
     { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
     ...staffRoles.map(r => ({ id: r, allow: [PermissionFlagsBits.ViewChannel] }))
@@ -160,7 +216,40 @@ async function autoCriarCanais(interaction) {
     new ButtonBuilder().setCustomId('setup_painel_novo').setLabel('Criar Painel').setEmoji(EMOJI.add).setStyle(ButtonStyle.Success),
     new ButtonBuilder().setCustomId('setup_home').setLabel('Voltar').setEmoji(EMOJI.back).setStyle(ButtonStyle.Secondary)
   );
-  await interaction.editReply({ embeds: [embed], components: [row] });
+
+  const respond = interaction.replied || interaction.deferred
+    ? interaction.editReply.bind(interaction)
+    : interaction.update.bind(interaction);
+
+  await respond({ embeds: [embed], components: [row] });
+}
+
+// Handlers para os botões novos
+async function autoReuse(interaction) {
+  const config = await getGuildConfig(interaction.guildId);
+  const embed = new EmbedBuilder()
+    .setTitle(`${EMOJI.success} Estrutura mantida`)
+    .setDescription(
+      `Mantive tudo como estava:\n\n` +
+      `> ${EMOJI.category} <#${config.categoryId}>\n` +
+      `> ${EMOJI.logs} <#${config.logsChannelId}>\n` +
+      `> ${EMOJI.transcripts} <#${config.transcriptChannelId}>`
+    )
+    .setColor(BRAND.success).setFooter(footer());
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('setup_home').setLabel('Voltar').setEmoji(EMOJI.back).setStyle(ButtonStyle.Secondary)
+  );
+  await interaction.update({ embeds: [embed], components: [row] });
+}
+
+async function autoRecreate(interaction) {
+  await interaction.deferUpdate();
+  return criarCanaisAgora(interaction, { apagarAntes: true });
+}
+
+async function autoForce(interaction) {
+  await interaction.deferUpdate();
+  return criarCanaisAgora(interaction, { apagarAntes: false });
 }
 
 // ============================================================
@@ -667,27 +756,32 @@ export async function handleSetupInteraction(interaction) {
   }
 
   // ---- NAVEGAÇÃO ----
-  if (customId === 'setup_home')        return renderHome(interaction);
-  if (customId === 'setup_paineis')     return renderPaineis(interaction);
-  if (customId === 'setup_teste')       return renderTeste(interaction);
-  if (customId === 'setup_ajuda')       return renderAjuda(interaction);
-  if (customId === 'setup_plano')       return renderPlano(interaction);
-  if (customId === 'setup_planos')      return renderPlanos(interaction);
-  if (customId === 'setup_branding')    return renderBranding(interaction);
-  if (customId === 'setup_brand_edit')  return abrirModalBranding(interaction);
-  if (customId === 'setup_brand_reset') return resetarBranding(interaction);
+  if (customId === 'setup_home')         return renderHome(interaction);
+  if (customId === 'setup_paineis')      return renderPaineis(interaction);
+  if (customId === 'setup_teste')        return renderTeste(interaction);
+  if (customId === 'setup_ajuda')        return renderAjuda(interaction);
+  if (customId === 'setup_plano')        return renderPlano(interaction);
+  if (customId === 'setup_planos')       return renderPlanos(interaction);
+  if (customId === 'setup_branding')     return renderBranding(interaction);
+  if (customId === 'setup_brand_edit')   return abrirModalBranding(interaction);
+  if (customId === 'setup_brand_reset')  return resetarBranding(interaction);
   if (customId === 'setup_ativar_chave') return abrirModalChave(interaction);
 
   // ---- SECÇÕES ----
-  if (customId === 'setup_logs')        return renderLogs(interaction);
-  if (customId === 'setup_transcripts') return renderTranscripts(interaction);
-  if (customId === 'setup_categoria')   return renderCategoria(interaction);
-  if (customId === 'setup_staff')       return renderStaff(interaction);
-  if (customId === 'setup_idioma')      return renderIdioma(interaction);
+  if (customId === 'setup_logs')         return renderLogs(interaction);
+  if (customId === 'setup_transcripts')  return renderTranscripts(interaction);
+  if (customId === 'setup_categoria')    return renderCategoria(interaction);
+  if (customId === 'setup_staff')        return renderStaff(interaction);
+  if (customId === 'setup_idioma')       return renderIdioma(interaction);
 
   // ---- AÇÕES ----
-  if (customId === 'setup_painel_novo') return abrirModalPainel(interaction);
-  if (customId === 'setup_auto')        return autoCriarCanais(interaction);
+  if (customId === 'setup_painel_novo')  return abrirModalPainel(interaction);
+
+  // 🪄 Auto-criar canais — com confirmação anti-duplicação
+  if (customId === 'setup_auto')           return autoCriarCanais(interaction);
+  if (customId === 'setup_auto_reuse')     return autoReuse(interaction);
+  if (customId === 'setup_auto_recreate')  return autoRecreate(interaction);
+  if (customId === 'setup_auto_force')     return autoForce(interaction);
 
   // ---- SELECTS ----
   if (customId === 'setup_select_logs') {
