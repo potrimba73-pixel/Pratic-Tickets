@@ -60,5 +60,59 @@
     "title": "📄 Transcript",
     "cutTitle": "⚠️ Transcript Cortado",
     "cutDesc": "Este ticket tinha **{total}** mensagens, mas o plano **{plan}** só exporta **{max}**.\nFicaram de fora **{faltam}** mensagens.\n\n💡 Faz upgrade para **{next}** ({price}) e exporta até **{nextMax}** por ticket."
+  },
+  "wizard": {
+    "author": "Centro de Configuração",
+    "title": "⚙️ Painel de Configuração",
+    "desc": "> Configura tudo **sem decorar comandos**.\n> Clica nos botões abaixo para abrir cada secção.",
+    "state": "📊 Estado do Servidor",
+    "plan": "Plano",
+    "language": "Idioma",
+    "panels": "Painéis",
+    "staff": "Staff",
+    "logs": "Logs",
+    "transcripts": "Transcripts",
+    "category": "Categoria",
+    "notSet": "Não definido",
+    "noStaff": "Nenhum cargo",
+    "btn": {
+      "logs": "Logs",
+      "transcripts": "Transcripts",
+      "category": "Categoria",
+      "staff": "Staff",
+      "language": "Idioma",
+      "newPanel": "Criar Painel",
+      "panels": "Painéis",
+      "branding": "Branding",
+      "myPlan": "Meu Plano",
+      "auto": "Criar canais automáticos",
+      "test": "Testar",
+      "help": "Ajuda",
+      "back": "Voltar ao painel"
+    },
+    "sec": {
+      "logs": {
+        "title": "📝 Canal de Logs",
+        "body": "**Para que serve?**\n> Onde aparecem os eventos dos tickets (aberto, assumido, fechado).\n\n**Dica:**\n> Usa o botão 🪄 **Criar canais automáticos** para criar tudo de uma vez."
+      },
+      "transcripts": {
+        "title": "📄 Canal de Transcripts",
+        "body": "**Para que serve?**\n> Quando um ticket fecha, o histórico `.html` e `.txt` é enviado aqui."
+      },
+      "category": {
+        "title": "📁 Categoria",
+        "body": "**Para que serve?**\n> Onde os canais de ticket são criados.\n\n**Dica:**\n> Uma categoria dedicada mantém o servidor limpo."
+      },
+      "staff": {
+        "title": "🛡️ Cargos de Staff",
+        "current": "**Atuais:**",
+        "empty": "`Nenhum cargo definido`",
+        "hint": "> Os cargos acima já vêm **pré-selecionados** no menu abaixo.\n> Remove ou adiciona à vontade — depois clica fora para guardar.\n\n**Dica:** podes escolher até **10 cargos** de uma só vez."
+      },
+      "language": {
+        "title": "🌐 Idioma",
+        "body": "> Escolhe em que idioma o bot fala neste servidor."
+      }
+    }
   }
 }
