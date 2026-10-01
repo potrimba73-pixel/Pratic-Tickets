@@ -8,9 +8,10 @@ function esc(s) {
 
 function proximo(tier) {
   return {
-    free:    { nome: 'Básico',  preco: '€5',  msgs: 70 },
-    basico:  { nome: 'Pro',     preco: '€10', msgs: 150 },
-    pro:     { nome: 'Premium', preco: '€20', msgs: '∞' }
+    free:    { nome: 'Básico',  preco: '€5',  msgs: 2990 },
+    basico:  { nome: 'Pro',     preco: '€12', msgs: 9990 },
+    pro:     { nome: 'Premium', preco: '€15', msgs: '∞' },
+    premium: { nome: 'Custom',  preco: '€20', msgs: '∞' }
   }[tier] || null;
 }
 
