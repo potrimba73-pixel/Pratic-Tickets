@@ -403,13 +403,14 @@ async function renderPlanos(i) {
   const embed = new EmbedBuilder()
     .setTitle(`${EMOJI.premium} Planos disponíveis`)
     .setDescription(
-      '**Todos incluem:** sistema completo de tickets · multi-idioma · painéis configuráveis · transcripts HTML/TXT.\n\u200b'
+      '**Todos incluem:** sistema completo de tickets · multi-idioma (PT-PT · PT-BR · ES · RU · EN) · painéis configuráveis · transcripts HTML/TXT.\n\u200b'
     )
     .addFields(
-      { name: `🆓 Free — €0`,        value: '`6 painéis` · `3 opções` · `3 botões` · `70 msgs` · com marca', inline: false },
-      { name: `🔵 Básico — €5/mês`,  value: '`15 painéis` · `5 opções` · `5 botões` · `90 msgs` · **sem marca**', inline: false },
-      { name: `🟣 Pro — €10/mês`,    value: '`20 painéis` · `10 opções` · `10 botões` · `200 msgs` · ⭐ avaliações · ⏰ auto-fecho · 🎨 **branding**', inline: false },
-      { name: `🟡 Premium — €15/mês`, value: '`∞ painéis` · `10 opções` · `10 botões` · `∞ msgs` · ⭐ avaliações · ⏰ auto-fecho · 🎨 **branding total**', inline: false }
+      { name: `🆓 Free — €0`,         value: '`8 painéis` · `4 opções` · `4 botões` · `990 msgs` · avaliações · claim · sem marca', inline: false },
+      { name: `🔵 Básico — €5/mês`,   value: '`20 painéis` · `10 opções` · `10 botões` · `2.990 msgs` · formulários · respostas rápidas · sem marca', inline: false },
+      { name: `🟣 Pro — €12/mês`,     value: '`50 painéis` · `9.990 msgs` · DMs automáticas · auto-fecho · analytics avançado · ranking staff · horário de suporte · 🎨 **branding**', inline: false },
+      { name: `🟡 Premium — €15/mês`, value: '`∞ painéis` · `∞ msgs` · **white-label** · tudo desbloqueado · 🎨 branding total', inline: false },
+      { name: `🛠️ Custom — €20/mês`,  value: 'Tudo do Premium + **bot personalizado** (nome, avatar, branding) · configuração feita por nmim · suporte prioritário', inline: false }
     )
     .setColor(BRAND.gold)
     .setFooter(footer())
@@ -420,15 +421,6 @@ async function renderPlanos(i) {
     new ButtonBuilder().setCustomId('setup_home').setLabel('Voltar').setEmoji(EMOJI.back).setStyle(ButtonStyle.Secondary)
   );
   await i.update({ embeds: [embed], components: [row] });
-}
-
-async function abrirModalChave(i) {
-  const modal = new ModalBuilder().setCustomId('setup_modal_chave').setTitle('🔑 Ativar plano');
-  modal.addComponents(new ActionRowBuilder().addComponents(
-    new TextInputBuilder().setCustomId('chave').setLabel('Chave').setStyle(TextInputStyle.Short)
-      .setRequired(true).setMaxLength(40).setPlaceholder('PRO-XXXX-YYYY')
-  ));
-  await i.showModal(modal);
 }
 
 // ============================================================
