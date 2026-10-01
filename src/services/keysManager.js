@@ -5,9 +5,6 @@ import { getGuildConfig, updateGuildConfig, getLimits } from '../database/guildC
 import { resgatarChave, registarVenda } from '../database/keys.js';
 import { BRAND, EMOJI, footer } from '../ui/theme.js';
 
-// ============================================================
-// ⏰ VERIFICAÇÃO DE EXPIRAÇÃO (corre a cada hora)
-// ============================================================
 export function iniciarVerificacaoExpiracao(client) {
   setInterval(async () => {
     try {
@@ -32,17 +29,18 @@ export function iniciarVerificacaoExpiracao(client) {
         } catch {}
       }
     } catch (e) { console.error(e); }
-  }, 3600000); // 1 hora
+  }, 3600000);
 }
 
 // ============================================================
-// 📩 PÓS-VENDA (DM ao ativar plano)
+// 📩 PÓS-VENDA
 // ============================================================
 export async function enviarPosVenda(interaction, tier, expiraEm) {
   const planos = {
-    basico:  { nome: 'Básico',  preco: '€5',  features: ['15 painéis','5 opções','5 botões','90 msgs','Sem marca'] },
-    pro:     { nome: 'Pro',     preco: '€10', features: ['20 painéis','10 opções','10 botões','200 msgs','Avaliações','Auto-fecho','🎨 Branding'] },
-    premium: { nome: 'Premium', preco: '€15', features: ['Ilimitado','10 opções','10 botões','∞ msgs','White-label','🎨 Branding total'] }
+    basico:  { nome: 'Básico',  preco: '€5',  features: ['20 painéis','10 opções','10 botões','2.990 msgs','Formulários','Respostas rápidas','Sem marca'] },
+    pro:     { nome: 'Pro',     preco: '€12', features: ['50 painéis','10 opções','10 botões','9.990 msgs','DMs automáticas','Auto-fecho','Analytics avançado','Ranking staff','🎨 Branding'] },
+    premium: { nome: 'Premium', preco: '€15', features: ['Painéis ilimitados','Transcripts ilimitados','White-label','Tudo desbloqueado','🎨 Branding total'] },
+    custom:  { nome: 'Custom',  preco: '€20', features: ['Tudo do Premium','Bot personalizado','Nome/avatar/branding próprio','Configuração feita por nós','Suporte prioritário'] }
   };
   const p = planos[tier];
   if (!p) return;
@@ -62,9 +60,6 @@ export async function enviarPosVenda(interaction, tier, expiraEm) {
   catch { await interaction.followUp({ embeds: [embed], ephemeral: true }).catch(() => {}); }
 }
 
-// ============================================================
-// 🔑 PROCESSAR CHAVE VIA MODAL (chamado pelo setupWizard)
-// ============================================================
 export async function processarChaveModal(interaction) {
   const chave = interaction.fields.getTextInputValue('chave').trim();
   const res = await resgatarChave(chave, interaction.guildId, interaction.user.id);
@@ -78,7 +73,7 @@ export async function processarChaveModal(interaction) {
 
   await updateGuildConfig(interaction.guildId, { tier: res.tier, premiumUntil: res.expiraEm });
 
-  const valor = { basico: 5, pro: 10, premium: 15 }[res.tier] || 0;
+  const valor = { basico: 5, pro: 12, premium: 15, custom: 20 }[res.tier] || 0;
   await registarVenda({
     chave: chave.toUpperCase(),
     tier: res.tier,
@@ -98,7 +93,8 @@ export async function processarChaveModal(interaction) {
       `> ${EMOJI.transcripts} Msgs/transcript: **${lim.maxMsgs === Infinity ? '∞' : lim.maxMsgs}**\n` +
       (lim.rating    ? `> ${EMOJI.star} Avaliações ativas\n` : '') +
       (lim.autoClose ? `> ${EMOJI.clock} Auto-fecho ativo\n` : '') +
-      (lim.branding  ? `> 🎨 **Branding personalizado** — vai a 🎨 no painel\n` : '')
+      (lim.branding  ? `> 🎨 **Branding personalizado** — vai a 🎨 no painel\n` : '') +
+      (lim.whiteLabel ? `> 🏷️ **White-label** ativo\n` : '')
     )
     .setColor(BRAND.success)
     .setFooter(footer())
