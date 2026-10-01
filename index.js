@@ -147,7 +147,12 @@ client.once('clientReady', async () => {
   handleReady(client);
 });
 
-client.on('interactionCreate', (i) => handleInteraction(i, client));
+client.on('interactionCreate', (i) => {
+  handleInteraction(i, client).catch((e) => {
+    if (e?.code === 10062 || e?.code === 40060) return;
+    console.error('❌ interactionCreate:', e.message);
+  });
+});
 client.on('guildCreate', (g) => handleGuildCreate(g, client));
 
 // ============================================================
