@@ -60,5 +60,58 @@
     "title": "📄 Transcript",
     "cutTitle": "⚠️ Transcript Cut",
     "cutDesc": "This ticket had **{total}** messages, but the **{plan}** plan only exports **{max}**.\n**{faltam}** messages were left out.\n\n💡 Upgrade to **{next}** ({price}) and export up to **{nextMax}** per ticket."
+  },
+  "wizard": {
+    "author": "Configuration Center",
+    "title": "⚙️ Configuration Panel",
+    "desc": "> Configure everything **without memorizing commands**.\n> Click the buttons below to open each section.",
+    "state": "📊 Server Status",
+    "plan": "Plan",
+    "language": "Language",
+    "panels": "Panels",
+    "staff": "Staff",
+    "logs": "Logs",
+    "transcripts": "Transcripts",
+    "category": "Category",
+    "notSet": "Not set",
+    "noStaff": "No role",
+    "btn": {
+      "logs": "Logs",
+      "transcripts": "Transcripts",
+      "category": "Category",
+      "staff": "Staff",
+      "language": "Language",
+      "newPanel": "Create Panel",
+      "panels": "Panels",
+      "branding": "Branding",
+      "myPlan": "My Plan",
+      "auto": "Auto-create channels",
+      "test": "Test",
+      "help": "Help",
+      "back": "Back to panel"
+    },
+    "sec": {
+      "logs": {
+        "title": "📝 Logs Channel",
+        "body": "**What is it for?**\n> Where ticket events appear (opened, claimed, closed).\n\n**Tip:**\n> Use the 🪄 **Auto-create channels** button to set everything up at once."
+      },
+      "transcripts": {
+        "title": "📄 Transcripts Channel",
+        "body": "**What is it for?**\n> When a ticket closes, the `.html` and `.txt` history is sent here."
+      },
+      "category": {
+        "title": "📁 Category",
+        "body": "**What is it for?**\n> Where ticket channels are created.\n\n**Tip:**\n> A dedicated category keeps your server tidy."
+      },
+      "staff": {
+        "title": "🛡️ Staff Roles",
+        "current": "**Current:**",
+        "empty": "`No role set`",
+        "hint": "> The roles above are already **pre-selected** in the menu below.\n> Add or remove freely — click away to save.\n\n**Tip:** you can pick up to **10 roles** at once."
+      },
+      "language": {
+        "title": "🌐 Language",
+        "body": "> Choose which language the bot speaks on this server."
+      }
+    }
   }
-}
