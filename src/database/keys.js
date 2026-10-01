@@ -1,6 +1,8 @@
 import { getDB } from './mongo.js';
 import { randomBytes } from 'crypto';
 
+const TIERS_VALIDOS = ['basico', 'pro', 'premium', 'custom'];
+
 export function gerarChave(tier) {
   const prefixo = tier.toUpperCase().slice(0, 3);
   const a = randomBytes(4).toString('hex').toUpperCase();
@@ -57,7 +59,8 @@ export async function estatisticasVendas() {
   const porTier = {};
   for (const v of vendas) porTier[v.tier] = (porTier[v.tier] || 0) + 1;
   const guilds = await getDB().collection('guilds').find({ tier: { $ne: 'free' } }).toArray();
-  const precos = { basico: 5, pro: 10, premium: 15 };  // 20 → 15
+  // ✅ NOVOS PREÇOS: 5 / 12 / 15 / 20
+  const precos = { basico: 5, pro: 12, premium: 15, custom: 20 };
   const recorrente = guilds.reduce((s, g) => s + (precos[g.tier] || 0), 0);
   return { totalVendas: vendas.length, totalEuros: total, porTier, clientesAtivos: guilds.length, recorrente };
 }
