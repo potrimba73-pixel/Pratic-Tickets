@@ -1,3 +1,4 @@
+// src/events/interactionCreate.js
 import {
   EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder,
   ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder,
@@ -15,81 +16,101 @@ import { gerarErrorId, registarErro, obterErro, listarRecentes } from '../utils/
 // ============================================================
 // 🎯 IDs FIXOS
 // ============================================================
-export const OWNER_ID   = '996454465555136675';     // o teu ID de dono
-export const HOME_GUILD = '1550930566054936787';    // servidor onde vivem os comandos de admin
+export const OWNER_ID   = '996454465555136675';
+export const HOME_GUILD = '1550930566054936787';
+
+// ============================================================
+// 🚫 IGNORAR — erros de interação expirada/duplicada
+// ============================================================
+const IGNORAR_ERROS = new Set([10062, 40060]);
+const ignorar = (err) => IGNORAR_ERROS.has(err?.code);
 
 // ============================================================
 // HANDLER PRINCIPAL
 // ============================================================
 export async function handleInteraction(interaction, client) {
   try {
+    // ---- SETUP WIZARD ----
     if (interaction.customId?.startsWith('setup_')) {
-      return handleSetupInteraction(interaction);
+      return await handleSetupInteraction(interaction);
     }
 
-    if (interaction.isChatInputCommand()) return handleCommand(interaction, client);
+    // ---- SLASH COMMANDS ----
+    if (interaction.isChatInputCommand()) {
+      return await handleCommand(interaction, client);
+    }
 
+    // ---- SELECT MENUS ----
     if (interaction.isStringSelectMenu() && interaction.customId.startsWith('panel_')) {
-      return createTicket(interaction, interaction.customId.replace('panel_', ''), interaction.values[0]);
+      return await createTicket(
+        interaction,
+        interaction.customId.replace('panel_', ''),
+        interaction.values[0]
+      );
     }
 
+    // ---- BOTÕES ----
     if (interaction.isButton()) {
       const { customId } = interaction;
 
       if (customId.startsWith('panelbtn|')) {
         const [, panelId, optionValue] = customId.split('|');
-        return createTicket(interaction, panelId, optionValue);
+        return await createTicket(interaction, panelId, optionValue);
       }
 
-      if (customId.startsWith('claim_'))    return claimTicket(interaction);
-      if (customId.startsWith('close_'))    return closeTicket(interaction);
-      if (customId.startsWith('rate_'))     return handleRating(interaction);
-      if (customId.startsWith('notify_'))   return notifyStaff(interaction);
-      if (customId.startsWith('add_'))      return addUser(interaction);
-      if (customId.startsWith('priority_')) return togglePriority(interaction);
-      if (customId.startsWith('lock_'))     return toggleLock(interaction);
-      if (customId.startsWith('rename_'))   return renameTicket(interaction);
-      if (customId.startsWith('pin_'))      return pinTicket(interaction);
-      if (customId.startsWith('export_'))   return exportTicket(interaction);
-      if (customId.startsWith('transfer_')) return transferTicket(interaction);
+      if (customId.startsWith('claim_'))    return await claimTicket(interaction);
+      if (customId.startsWith('close_'))    return await closeTicket(interaction);
+      if (customId.startsWith('rate_'))     return await handleRating(interaction);
+      if (customId.startsWith('notify_'))   return await notifyStaff(interaction);
+      if (customId.startsWith('add_'))      return await addUser(interaction);
+      if (customId.startsWith('priority_')) return await togglePriority(interaction);
+      if (customId.startsWith('lock_'))     return await toggleLock(interaction);
+      if (customId.startsWith('rename_'))   return await renameTicket(interaction);
+      if (customId.startsWith('pin_'))      return await pinTicket(interaction);
+      if (customId.startsWith('export_'))   return await exportTicket(interaction);
+      if (customId.startsWith('transfer_')) return await transferTicket(interaction);
     }
 
-    if (interaction.isModalSubmit()) return handleModal(interaction);
-} catch (e) {
-  // 🚫 Ignorar interações expiradas/duplicadas
-  if (e?.code === 10062 || e?.code === 40060) {
-    console.warn(`⚠️ Interaction ignorada (code ${e.code})`);
-    return;
+    // ---- MODAIS ----
+    if (interaction.isModalSubmit()) {
+      return await handleModal(interaction);
+    }
+  } catch (e) {
+    // 🚫 Ignorar interações expiradas/duplicadas (não são erros reais)
+    if (ignorar(e)) {
+      console.warn(`⚠️ Interaction ignorada (code ${e.code})`);
+      return;
+    }
+
+    const id = gerarErrorId();
+    registarErro(id, e, {
+      user: interaction.user?.id,
+      userTag: interaction.user?.tag,
+      guildId: interaction.guildId,
+      guildName: interaction.guild?.name,
+      channelId: interaction.channelId,
+      type: interaction.type,
+      command: interaction.commandName || null,
+      customId: interaction.customId || null
+    });
+
+    const msg =
+      `❌ Ocorreu um erro inesperado.\n` +
+      `**Código:** \`${id}\`\n` +
+      `> Diz este código ao suporte para investigarem.`;
+
+    try {
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp({ content: msg, ephemeral: true });
+      } else {
+        await interaction.reply({ content: msg, ephemeral: true });
+      }
+    } catch {}
   }
-
-  const id = gerarErrorId();
-  registarErro(id, e, {
-    user: interaction.user?.id,
-    userTag: interaction.user?.tag,
-    guildId: interaction.guildId,
-    guildName: interaction.guild?.name,
-    channelId: interaction.channelId,
-    type: interaction.type,
-    command: interaction.commandName || null,
-    customId: interaction.customId || null
-  });
-
-  const msg =
-    `❌ Ocorreu um erro inesperado.\n` +
-    `**Código:** \`${id}\`\n` +
-    `> Diz este código ao suporte para investigarem.`;
-
-  try {
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({ content: msg, ephemeral: true });
-    } else {
-      await interaction.reply({ content: msg, ephemeral: true });
-    }
-  } catch {}
 }
 
 // ============================================================
-// HELPERS DOS BOTÕES DO TICKET
+// 🎫 BOTÕES DO TICKET
 // ============================================================
 async function notifyStaff(interaction) {
   const config = await getGuildConfig(interaction.guildId);
@@ -98,9 +119,15 @@ async function notifyStaff(interaction) {
 }
 
 async function addUser(interaction) {
-  const modal = new ModalBuilder().setCustomId(`addmodal_${interaction.channel.id}`).setTitle('➕ Adicionar membro');
+  const modal = new ModalBuilder()
+    .setCustomId(`addmodal_${interaction.channel.id}`)
+    .setTitle('➕ Adicionar membro');
   modal.addComponents(new ActionRowBuilder().addComponents(
-    new TextInputBuilder().setCustomId('user_id').setLabel('ID do utilizador').setStyle(TextInputStyle.Short).setRequired(true)
+    new TextInputBuilder()
+      .setCustomId('user_id')
+      .setLabel('ID do utilizador')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true)
   ));
   await interaction.showModal(modal);
 }
@@ -118,14 +145,26 @@ async function toggleLock(interaction) {
   const everyone = interaction.guild.roles.everyone;
   const perms = interaction.channel.permissionsFor(everyone);
   const locked = perms && !perms.has(PermissionFlagsBits.SendMessages);
-  await interaction.channel.permissionOverwrites.edit(everyone, { SendMessages: locked ? null : false });
-  await interaction.reply({ content: locked ? '🔓 Desbloqueado' : '🔐 Bloqueado', ephemeral: true });
+  await interaction.channel.permissionOverwrites.edit(everyone, {
+    SendMessages: locked ? null : false
+  });
+  await interaction.reply({
+    content: locked ? '🔓 Desbloqueado' : '🔐 Bloqueado',
+    ephemeral: true
+  });
 }
 
 async function renameTicket(interaction) {
-  const modal = new ModalBuilder().setCustomId(`renamemodal_${interaction.channel.id}`).setTitle('✏️ Renomear');
+  const modal = new ModalBuilder()
+    .setCustomId(`renamemodal_${interaction.channel.id}`)
+    .setTitle('✏️ Renomear');
   modal.addComponents(new ActionRowBuilder().addComponents(
-    new TextInputBuilder().setCustomId('new_name').setLabel('Novo nome').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(50)
+    new TextInputBuilder()
+      .setCustomId('new_name')
+      .setLabel('Novo nome')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true)
+      .setMaxLength(50)
   ));
   await interaction.showModal(modal);
 }
@@ -138,36 +177,59 @@ async function pinTicket(interaction) {
 }
 
 async function exportTicket(interaction) {
-  await interaction.reply({ content: '📄 Fecha o ticket para gerar transcript.', ephemeral: true });
+  await interaction.reply({
+    content: '📄 Fecha o ticket para gerar transcript.',
+    ephemeral: true
+  });
 }
 
 async function transferTicket(interaction) {
   const config = await getGuildConfig(interaction.guildId);
   const staff = interaction.guild.members.cache.filter(m =>
-    config.staffRoles.some(r => m.roles.cache.has(r)) && !m.user.bot && m.id !== interaction.user.id
+    config.staffRoles.some(r => m.roles.cache.has(r)) &&
+    !m.user.bot &&
+    m.id !== interaction.user.id
   ).first(25);
-  if (!staff.length) return interaction.reply({ content: '❌ Sem staff disponível.', ephemeral: true });
 
-  const menu = new StringSelectMenuBuilder().setCustomId(`transfer_select_${interaction.channel.id}`).setPlaceholder('Transferir')
-    .addOptions(staff.map(m => ({ label: m.displayName.slice(0, 100), value: m.id })));
-  await interaction.reply({ components: [new ActionRowBuilder().addComponents(menu)], ephemeral: true });
+  if (!staff.length) {
+    return interaction.reply({ content: '❌ Sem staff disponível.', ephemeral: true });
+  }
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId(`transfer_select_${interaction.channel.id}`)
+    .setPlaceholder('Transferir')
+    .addOptions(staff.map(m => ({
+      label: m.displayName.slice(0, 100),
+      value: m.id
+    })));
+
+  await interaction.reply({
+    components: [new ActionRowBuilder().addComponents(menu)],
+    ephemeral: true
+  });
 }
 
 // ============================================================
-// 🎯 GUARDA: o dono? no servidor home?
+// 🎯 GUARDA: dono? servidor home?
 // ============================================================
 function guardOwnerHome(interaction, { precisaHome = true, precisaOwner = true } = {}) {
   if (precisaOwner && interaction.user.id !== OWNER_ID) {
-    return interaction.reply({ content: '❌ Só o dono do bot pode usar isto.', ephemeral: true });
+    return interaction.reply({
+      content: '❌ Só o dono do bot pode usar isto.',
+      ephemeral: true
+    });
   }
   if (precisaHome && interaction.guildId !== HOME_GUILD) {
-    return interaction.reply({ content: '❌ Este comando só funciona no servidor de suporte.', ephemeral: true });
+    return interaction.reply({
+      content: '❌ Este comando só funciona no servidor de suporte.',
+      ephemeral: true
+    });
   }
   return null;
 }
 
 // ============================================================
-// COMANDOS
+// SLASH COMMANDS
 // ============================================================
 async function handleCommand(interaction, client) {
   const { commandName } = interaction;
@@ -175,16 +237,12 @@ async function handleCommand(interaction, client) {
   const locale = config.locale || 'pt-PT';
   const limits = getLimits(config.tier);
 
-  // ============================================================
-  // 🌍 GLOBAIS
-  // ============================================================
+  // ---- /pratic ----
   if (commandName === 'pratic') {
     return enviarSetup(interaction);
   }
 
-  // ============================================================
-  // 🏠 HOME — só no servidor de suporte + só o dono
-  // ============================================================
+  // ---- /criar-cargos (dono + home) ----
   if (commandName === 'criar-cargos') {
     const denied = guardOwnerHome(interaction);
     if (denied) return denied;
@@ -192,6 +250,7 @@ async function handleCommand(interaction, client) {
     return criarTodosCargos(interaction);
   }
 
+  // ---- /gerar-chave (dono + home) ----
   if (commandName === 'gerar-chave') {
     const denied = guardOwnerHome(interaction);
     if (denied) return denied;
@@ -201,6 +260,7 @@ async function handleCommand(interaction, client) {
     return interaction.reply({ content: `\`\`\`${chave}\`\`\``, ephemeral: true });
   }
 
+  // ---- /admin-chaves (dono + home) ----
   if (commandName === 'admin-chaves') {
     const denied = guardOwnerHome(interaction);
     if (denied) return denied;
@@ -208,24 +268,38 @@ async function handleCommand(interaction, client) {
 
     if (sub === 'stats') {
       const e = await estatisticasVendas();
-      return interaction.reply({ embeds: [new EmbedBuilder().setTitle('📊').addFields(
-        { name: 'Vendas',  value: `${e.totalVendas}`,             inline: true },
-        { name: 'Receita', value: `€${e.totalEuros.toFixed(2)}`,  inline: true },
-        { name: 'Ativos',  value: `${e.clientesAtivos}`,          inline: true },
-        { name: 'MRR',     value: `€${e.recorrente}/mês`,         inline: true }
-      ).setColor('#57f287')], ephemeral: true });
+      return interaction.reply({
+        embeds: [new EmbedBuilder().setTitle('📊').addFields(
+          { name: 'Vendas',  value: `${e.totalVendas}`,            inline: true },
+          { name: 'Receita', value: `€${e.totalEuros.toFixed(2)}`, inline: true },
+          { name: 'Ativos',  value: `${e.clientesAtivos}`,         inline: true },
+          { name: 'MRR',     value: `€${e.recorrente}/mês`,        inline: true }
+        ).setColor('#57f287')],
+        ephemeral: true
+      });
     }
+
     if (sub === 'listar') {
       const chaves = await listarChaves();
-      return interaction.reply({ content: chaves.map(k => `\`${k.chave}\` **${k.tier}** ${k.usada ? '✅' : '⏳'}`).join('\n') || '—', ephemeral: true });
+      return interaction.reply({
+        content: chaves.map(k =>
+          `\`${k.chave}\` **${k.tier}** ${k.usada ? '✅' : '⏳'}`
+        ).join('\n') || '—',
+        ephemeral: true
+      });
     }
+
     if (sub === 'revogar') {
       const c = interaction.options.getString('chave');
       const ok = await revogarChave(c);
-      return interaction.reply({ content: ok ? '✅ Revogada' : '❌ Não encontrada', ephemeral: true });
+      return interaction.reply({
+        content: ok ? '✅ Revogada' : '❌ Não encontrada',
+        ephemeral: true
+      });
     }
   }
 
+  // ---- /erro (dono + home) ----
   if (commandName === 'erro') {
     const denied = guardOwnerHome(interaction);
     if (denied) return denied;
@@ -235,8 +309,12 @@ async function handleCommand(interaction, client) {
       const id = interaction.options.getString('id').toUpperCase();
       const e = obterErro(id);
       if (!e) {
-        return interaction.reply({ content: `❌ Erro \`${id}\` não encontrado (cache só guarda os últimos 200 — reinícios limpam).`, ephemeral: true });
+        return interaction.reply({
+          content: `❌ Erro \`${id}\` não encontrado (cache guarda os últimos 200 — reinícios limpam).`,
+          ephemeral: true
+        });
       }
+
       const stackCurto = (e.stack || '').split('\n').slice(0, 8).join('\n').slice(0, 1800);
       const embed = new EmbedBuilder()
         .setTitle(`🚨 Erro ${e.id}`)
@@ -246,32 +324,38 @@ async function handleCommand(interaction, client) {
           { name: 'Código',  value: e.code ? `\`${e.code}\`` : '—',             inline: true },
           { name: 'Guild',   value: e.ctx.guildName ? `${e.ctx.guildName}\n\`${e.ctx.guildId}\`` : '—', inline: false },
           { name: 'User',    value: e.ctx.userTag ? `${e.ctx.userTag}\n\`${e.ctx.user}\`` : '—', inline: false },
-          { name: 'Comando', value: e.ctx.command || e.ctx.customId || '—',     inline: false },
-          { name: 'Stack',   value: '```\n' + stackCurto + '\n```',              inline: false }
+          { name: 'Comando', value: e.ctx.command || e.ctx.customId || '—', inline: false },
+          { name: 'Stack',   value: '```\n' + stackCurto + '\n```', inline: false }
         )
         .setColor('#ed4245')
         .setFooter({ text: 'Pratic Bot • error tracker' })
         .setTimestamp(e.ts);
+
       return interaction.reply({ embeds: [embed], ephemeral: true });
     }
 
     if (sub === 'recentes') {
       const lista = listarRecentes(10);
-      if (!lista.length) return interaction.reply({ content: '✅ Nenhum erro registado.', ephemeral: true });
-      const txt = lista.map(e => `\`${e.id}\` <t:${Math.floor(e.ts.getTime()/1000)}:R> — ${e.message.slice(0, 80)}`).join('\n');
+      if (!lista.length) {
+        return interaction.reply({ content: '✅ Nenhum erro registado.', ephemeral: true });
+      }
+      const txt = lista.map(e =>
+        `\`${e.id}\` <t:${Math.floor(e.ts.getTime()/1000)}:R> — ${e.message.slice(0, 80)}`
+      ).join('\n');
       return interaction.reply({ content: txt, ephemeral: true });
     }
   }
 
-  // ============================================================
-  // 🌍 GLOBAL: /painel (qualquer servidor, admin do servidor)
-  // ============================================================
+  // ---- /painel ----
   if (commandName === 'painel') {
     const sub = interaction.options.getSubcommand();
 
     if (sub === 'criar') {
       if (config.panels.length >= limits.maxPanels) {
-        return interaction.reply({ content: `❌ Limite de ${limits.maxPanels} painéis.`, ephemeral: true });
+        return interaction.reply({
+          content: `❌ Limite de ${limits.maxPanels} painéis.`,
+          ephemeral: true
+        });
       }
       const nome = interaction.options.getString('nome');
       const titulo = interaction.options.getString('titulo');
@@ -279,30 +363,51 @@ async function handleCommand(interaction, client) {
       const corInput = (interaction.options.getString('cor') || '#5865f2').trim();
       const cor = /^#[0-9a-fA-F]{6}$/.test(corInput) ? corInput : '#5865f2';
       const id = `p_${Date.now().toString(36)}`;
+
       config.panels.push({ id, nome, title: titulo, descricao, color: cor, options: [] });
       await updateGuildConfig(interaction.guildId, { panels: config.panels });
-      return interaction.reply({ content: t(locale, 'panel.created', { id }), ephemeral: true });
+
+      return interaction.reply({
+        content: t(locale, 'panel.created', { id }),
+        ephemeral: true
+      });
     }
 
     if (sub === 'opcao') {
       const pid = interaction.options.getString('painel_id');
       const label = interaction.options.getString('label');
-      const value = interaction.options.getString('value').toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      const value = interaction.options
+        .getString('value')
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, '_');
       const panel = config.panels.find(p => p.id === pid);
-      if (!panel) return interaction.reply({ content: '❌ Painel não encontrado.', ephemeral: true });
+      if (!panel) {
+        return interaction.reply({ content: '❌ Painel não encontrado.', ephemeral: true });
+      }
       if (panel.options.length >= limits.maxOptions) {
-        return interaction.reply({ content: `❌ Limite de ${limits.maxOptions} opções.`, ephemeral: true });
+        return interaction.reply({
+          content: `❌ Limite de ${limits.maxOptions} opções.`,
+          ephemeral: true
+        });
       }
       if (panel.options.some(o => o.value === value)) {
-        return interaction.reply({ content: `❌ Já existe uma opção com value \`${value}\`.`, ephemeral: true });
+        return interaction.reply({
+          content: `❌ Já existe uma opção com value \`${value}\`.`,
+          ephemeral: true
+        });
       }
       panel.options.push({ label, value });
       await updateGuildConfig(interaction.guildId, { panels: config.panels });
-      return interaction.reply({ content: t(locale, 'panel.optionAdded', { n: panel.options.length, max: limits.maxOptions }), ephemeral: true });
+      return interaction.reply({
+        content: t(locale, 'panel.optionAdded', { n: panel.options.length, max: limits.maxOptions }),
+        ephemeral: true
+      });
     }
 
     if (sub === 'listar') {
-      const txt = config.panels.map(p => `**${p.nome}** — \`${p.id}\` — ${p.options.length} opções`).join('\n') || t(locale, 'panel.listEmpty');
+      const txt = config.panels.map(p =>
+        `**${p.nome}** — \`${p.id}\` — ${p.options.length} opções`
+      ).join('\n') || t(locale, 'panel.listEmpty');
       return interaction.reply({ content: txt, ephemeral: true });
     }
 
@@ -311,8 +416,12 @@ async function handleCommand(interaction, client) {
       const canal = interaction.options.getChannel('canal');
       const panel = config.panels.find(p => p.id === pid);
       if (!panel || !panel.options.length) {
-        return interaction.reply({ content: '❌ Painel não tem opções.', ephemeral: true });
+        return interaction.reply({
+          content: '❌ Painel não tem opções.',
+          ephemeral: true
+        });
       }
+
       const unique = [];
       const seen = new Set();
       for (const o of panel.options) {
@@ -322,25 +431,39 @@ async function handleCommand(interaction, client) {
         unique.push({ label: o.label.slice(0, 100), value: v });
         if (unique.length >= 10) break;
       }
+
       const embed = new EmbedBuilder()
         .setTitle(panel.title)
         .setDescription(panel.descricao)
         .setTimestamp();
+
       aplicarBranding(embed, config, { color: panel.color || '#5865f2' });
       if (limits.watermark) embed.setFooter({ text: 'Pratic Bot' });
+
       const select = new StringSelectMenuBuilder()
         .setCustomId(`panel_${panel.id}`)
         .setPlaceholder(t(locale, 'panel.placeholder'))
         .addOptions(unique);
-      await canal.send({ embeds: [embed], components: [new ActionRowBuilder().addComponents(select)] });
-      return interaction.reply({ content: t(locale, 'panel.sent', { channel: `<#${canal.id}>` }), ephemeral: true });
+
+      await canal.send({
+        embeds: [embed],
+        components: [new ActionRowBuilder().addComponents(select)]
+      });
+
+      return interaction.reply({
+        content: t(locale, 'panel.sent', { channel: `<#${canal.id}>` }),
+        ephemeral: true
+      });
     }
 
     if (sub === 'apagar') {
       const pid = interaction.options.getString('painel_id');
       config.panels = config.panels.filter(p => p.id !== pid);
       await updateGuildConfig(interaction.guildId, { panels: config.panels });
-      return interaction.reply({ content: t(locale, 'panel.deleted'), ephemeral: true });
+      return interaction.reply({
+        content: t(locale, 'panel.deleted'),
+        ephemeral: true
+      });
     }
   }
 }
@@ -353,12 +476,20 @@ async function handleModal(interaction) {
 
   if (customId.startsWith('addmodal_')) {
     const channelId = customId.replace('addmodal_', '');
-    const userId = interaction.fields.getTextInputValue('user_id').replace(/[<@!>]/g, '');
+    const userId = interaction.fields
+      .getTextInputValue('user_id')
+      .replace(/[<@!>]/g, '');
     const member = await interaction.guild.members.fetch(userId).catch(() => null);
-    if (!member) return interaction.reply({ content: '❌ Utilizador não encontrado.', ephemeral: true });
+    if (!member) {
+      return interaction.reply({ content: '❌ Utilizador não encontrado.', ephemeral: true });
+    }
     const channel = interaction.guild.channels.cache.get(channelId);
     if (channel) {
-      await channel.permissionOverwrites.edit(member, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true });
+      await channel.permissionOverwrites.edit(member, {
+        ViewChannel: true,
+        SendMessages: true,
+        ReadMessageHistory: true
+      });
       await channel.send(`➕ <@${member.id}>`);
     }
     return interaction.reply({ content: '✅ Adicionado.', ephemeral: true });
