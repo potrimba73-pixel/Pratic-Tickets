@@ -5,8 +5,8 @@ import { criarChave } from '../src/database/keys.js';
 const tier = process.argv[2];
 const dias = parseInt(process.argv[3]) || 30;
 
-if (!['basico', 'pro', 'premium'].includes(tier)) {
-  console.log('Uso: node deploy/gerar-chave.js <basico|pro|premium> [dias]');
+if (!['basico', 'pro', 'premium', 'custom'].includes(tier)) {
+  console.log('Uso: node deploy/gerar-chave.js <basico|pro|premium|custom> [dias]');
   process.exit(1);
 }
 
