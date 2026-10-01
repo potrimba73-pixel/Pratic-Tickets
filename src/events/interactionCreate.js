@@ -55,32 +55,37 @@ export async function handleInteraction(interaction, client) {
     }
 
     if (interaction.isModalSubmit()) return handleModal(interaction);
-  } catch (e) {
-    const id = gerarErrorId();
-    registarErro(id, e, {
-      user: interaction.user?.id,
-      userTag: interaction.user?.tag,
-      guildId: interaction.guildId,
-      guildName: interaction.guild?.name,
-      channelId: interaction.channelId,
-      type: interaction.type,
-      command: interaction.commandName || null,
-      customId: interaction.customId || null
-    });
-
-    const msg =
-      `❌ Ocorreu um erro inesperado.\n` +
-      `**Código:** \`${id}\`\n` +
-      `> Diz este código ao suporte para investigarem.`;
-
-    try {
-      if (interaction.replied || interaction.deferred) {
-        await interaction.followUp({ content: msg, ephemeral: true });
-      } else {
-        await interaction.reply({ content: msg, ephemeral: true });
-      }
-    } catch {}
+} catch (e) {
+  // 🚫 Ignorar interações expiradas/duplicadas
+  if (e?.code === 10062 || e?.code === 40060) {
+    console.warn(`⚠️ Interaction ignorada (code ${e.code})`);
+    return;
   }
+
+  const id = gerarErrorId();
+  registarErro(id, e, {
+    user: interaction.user?.id,
+    userTag: interaction.user?.tag,
+    guildId: interaction.guildId,
+    guildName: interaction.guild?.name,
+    channelId: interaction.channelId,
+    type: interaction.type,
+    command: interaction.commandName || null,
+    customId: interaction.customId || null
+  });
+
+  const msg =
+    `❌ Ocorreu um erro inesperado.\n` +
+    `**Código:** \`${id}\`\n` +
+    `> Diz este código ao suporte para investigarem.`;
+
+  try {
+    if (interaction.replied || interaction.deferred) {
+      await interaction.followUp({ content: msg, ephemeral: true });
+    } else {
+      await interaction.reply({ content: msg, ephemeral: true });
+    }
+  } catch {}
 }
 
 // ============================================================
