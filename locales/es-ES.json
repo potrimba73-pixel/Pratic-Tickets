@@ -60,5 +60,58 @@
     "title": "📄 Transcripción",
     "cutTitle": "⚠️ Transcripción Cortada",
     "cutDesc": "Este ticket tenía **{total}** mensajes, pero el plan **{plan}** solo exporta **{max}**.\nQuedaron fuera **{faltam}** mensajes.\n\n💡 Haz upgrade a **{next}** ({price}) y exporta hasta **{nextMax}** por ticket."
+  },
+  "wizard": {
+    "author": "Centro de Configuración",
+    "title": "⚙️ Panel de Configuración",
+    "desc": "> Configura todo **sin memorizar comandos**.\n> Haz clic en los botones de abajo para abrir cada sección.",
+    "state": "📊 Estado del Servidor",
+    "plan": "Plan",
+    "language": "Idioma",
+    "panels": "Paneles",
+    "staff": "Staff",
+    "logs": "Logs",
+    "transcripts": "Transcripciones",
+    "category": "Categoría",
+    "notSet": "No definido",
+    "noStaff": "Ningún rol",
+    "btn": {
+      "logs": "Logs",
+      "transcripts": "Transcripciones",
+      "category": "Categoría",
+      "staff": "Staff",
+      "language": "Idioma",
+      "newPanel": "Crear Panel",
+      "panels": "Paneles",
+      "branding": "Branding",
+      "myPlan": "Mi Plan",
+      "auto": "Crear canales automáticos",
+      "test": "Probar",
+      "help": "Ayuda",
+      "back": "Volver al panel"
+    },
+    "sec": {
+      "logs": {
+        "title": "📝 Canal de Logs",
+        "body": "**¿Para qué sirve?**\n> Donde aparecen los eventos de los tickets (abierto, asumido, cerrado).\n\n**Consejo:**\n> Usa el botón 🪄 **Crear canales automáticos** para configurar todo de una vez."
+      },
+      "transcripts": {
+        "title": "📄 Canal de Transcripciones",
+        "body": "**¿Para qué sirve?**\n> Cuando un ticket se cierra, el historial `.html` y `.txt` se envía aquí."
+      },
+      "category": {
+        "title": "📁 Categoría",
+        "body": "**¿Para qué sirve?**\n> Donde se crean los canales de ticket.\n\n**Consejo:**\n> Una categoría dedicada mantiene el servidor limpio."
+      },
+      "staff": {
+        "title": "🛡️ Roles de Staff",
+        "current": "**Actuales:**",
+        "empty": "`Ningún rol definido`",
+        "hint": "> Los roles de arriba ya vienen **pre-seleccionados** en el menú de abajo.\n> Añade o quita libremente — haz clic fuera para guardar.\n\n**Consejo:** puedes elegir hasta **10 roles** a la vez."
+      },
+      "language": {
+        "title": "🌐 Idioma",
+        "body": "> Elige en qué idioma habla el bot en este servidor."
+      }
+    }
   }
-}
